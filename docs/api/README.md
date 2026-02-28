@@ -382,7 +382,7 @@ Validation:
 
 - `sourceAsset`: must be `BTC`
 - `destinationAsset`: one of `USDC | ETH | STRK | WBTC | USDT | TBTC`
-- `amount`: positive integer string
+- `amount`: positive integer string in **satoshis** for both `exactIn` and `exactOut` (1 BTC = 100,000,000). The DB stores normalized token amounts (`amount_source_sats`, `amount_destination_units`).
 - `amountType`: `exactIn | exactOut`
 - `receiveAddress`: validated with `starknet.js` (`validateAndParseAddress`)
 

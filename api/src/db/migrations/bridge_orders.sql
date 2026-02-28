@@ -5,6 +5,8 @@ CREATE TABLE IF NOT EXISTS bridge_orders (
   destination_asset TEXT NOT NULL,
   amount NUMERIC(78,0) NOT NULL,
   amount_type TEXT NOT NULL,
+  amount_source_sats NUMERIC(78,0),
+  amount_destination_units NUMERIC(78,0),
   receive_address TEXT NOT NULL,
   wallet_address TEXT NOT NULL,
   status TEXT NOT NULL,

@@ -6,6 +6,36 @@ import { settings } from "../settings.js";
 import { PostgresUnifiedStorage } from "./postgresStorage.js";
 import { InMemoryChainStorage } from "./inMemoryStorage.js";
 
+const DESTINATION_DECIMALS: Record<string, number> = {
+  WBTC: 8,
+  TBTC: 18,
+  ETH: 18,
+  STRK: 18,
+  USDC: 6,
+  USDT: 6,
+  _TESTNET_WBTC_VESU: 8,
+};
+
+/**
+ * Convert satoshis to destination token base units.
+ * API always accepts amount in satoshis for both exactIn and exactOut.
+ * - 8-decimal tokens (WBTC, TBTC): 1:1 (1 sat ≈ 1 unit)
+ * - 6-decimal (USDC, USDT): 1 sat ≈ $0.001 → 1000 units (at ~$100k/BTC)
+ * - 18-decimal (ETH, STRK): 1 sat ≈ $0.001 → 10^15 wei (at ~$100k/BTC, ~$2k/ETH)
+ */
+function satoshisToDestinationUnits(satoshis: bigint, decimals: number): bigint {
+  if (decimals >= 8) {
+    return satoshis * 10n ** BigInt(decimals - 8);
+  }
+  if (decimals === 6) {
+    return satoshis * 1000n;
+  }
+  if (decimals === 18) {
+    return satoshis * 10n ** 15n;
+  }
+  return satoshis;
+}
+
 type AtomiqSwapLike = {
   getId?: () => string;
   getState?: () => unknown;
@@ -36,6 +66,8 @@ type CreateIncomingSwapResult = {
   statusRaw: unknown;
   quote: Record<string, unknown>;
   expiresAt: string | null;
+  amountSourceSats: string;
+  amountDestinationUnits: string;
 };
 
 type AtomiqOrderSnapshot = {
@@ -143,12 +175,31 @@ export class AtomiqSdkClient implements AtomiqClient {
   async createIncomingSwap(input: CreateIncomingSwapInput): Promise<CreateIncomingSwapResult> {
     const swapper = await this.getSwapper(input.network);
     const amountType = input.amountType === "exactOut" ? SwapAmountType.EXACT_OUT : SwapAmountType.EXACT_IN;
-    const token = (this.factory as any).TokenResolver.STARKNET.getToken(input.destinationAsset);
+    const tokens = (this.factory as any).Tokens.STARKNET as Record<string, unknown>;
+    const tokenResolver = (this.factory as any).TokenResolver.STARKNET;
+    const ticker =
+      input.network === "testnet" && input.destinationAsset === "WBTC"
+        ? "_TESTNET_WBTC_VESU"
+        : input.destinationAsset;
+    const token = tokens[ticker] ?? tokenResolver.getToken(input.destinationAsset);
+    if (!token) {
+      throw new Error(`Unsupported destination asset: ${input.destinationAsset}`);
+    }
+    // API always accepts amount in satoshis for both exactIn and exactOut.
+    const amountSatoshis = BigInt(input.amount);
+    const decimals =
+      DESTINATION_DECIMALS[ticker] ?? DESTINATION_DECIMALS[input.destinationAsset] ?? 8;
+    const amountForSdk =
+      amountType === SwapAmountType.EXACT_IN
+        ? amountSatoshis
+        : satoshisToDestinationUnits(amountSatoshis, decimals);
+
+    const exactIn = amountType === SwapAmountType.EXACT_IN;
     const swap = (await swapper.swap(
       "BTC",
       token,
-      input.amount,
-      amountType,
+      amountForSdk,
+      exactIn,
       undefined,
       input.receiveAddress
     )) as AtomiqSwapLike;
@@ -158,9 +209,11 @@ export class AtomiqSdkClient implements AtomiqClient {
       throw new Error("Unable to create Atomiq swap id");
     }
 
+    const amountIn = getAmountLike(swap.getInput?.());
+    const amountOut = getAmountLike(swap.getOutput?.());
     const quote: Record<string, unknown> = {
-      amountIn: getAmountLike(swap.getInput?.()),
-      amountOut: getAmountLike(swap.getOutput?.()),
+      amountIn,
+      amountOut,
       depositAddress: swap.getAddress?.() ?? null,
     };
 
@@ -170,6 +223,8 @@ export class AtomiqSdkClient implements AtomiqClient {
       statusRaw: swap.getState?.(),
       quote,
       expiresAt: typeof timeout === "number" ? new Date(timeout).toISOString() : null,
+      amountSourceSats: amountIn ?? input.amount,
+      amountDestinationUnits: amountOut ?? String(amountForSdk),
     };
   }
 

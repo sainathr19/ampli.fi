@@ -13,6 +13,8 @@ function makeOrder(overrides: Partial<BridgeOrder> = {}): BridgeOrder {
     destinationAsset: "USDC",
     amount: "100000",
     amountType: "exactIn",
+    amountSourceSats: "100000",
+    amountDestinationUnits: "9970000",
     receiveAddress: "0x0123",
     walletAddress: "0xwallet",
     status: "CREATED",
