@@ -17,21 +17,12 @@ app.use(
 app.use(express.json());
 
 app.get("/", (_req, res) => {
-  res.json({
-    status: "Amplify API running",
-    version: "1.0.0",
-    endpoints: {
-      walletCreate: "POST /api/wallet/starknet",
-      walletSign: "POST /api/wallet/sign",
-      paymaster: "POST /api/paymaster/*",
-    },
-  });
+  res.json("Online");
 });
 
 app.use("/api/wallet", walletRoutes);
 app.use("/api/paymaster", paymasterRoutes);
 
 app.listen(PORT, () => {
-  console.log(`Amplify API v1.0.0`);
   console.log(`Server running on http://localhost:${PORT}`);
 });
