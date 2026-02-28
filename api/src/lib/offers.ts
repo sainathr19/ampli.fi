@@ -4,7 +4,9 @@ import { asNumber, asString, pickArray } from "./aggregatorUtils.js";
 export type LoanOfferQuery = {
   collateral: string;
   borrow: string;
+  mode: "borrowToCollateral" | "collateralToBorrow";
   borrowUsd?: number;
+  collateralAmount?: number;
   targetLtv?: number;
 };
 
@@ -61,11 +63,62 @@ function getUsdPrice(asset: Record<string, unknown>): number | null {
 }
 
 function buildQuote(
+  mode: LoanOfferQuery["mode"],
   borrowUsdInput: number | undefined,
+  collateralAmountInput: number | undefined,
   targetLtvInput: number | undefined,
+  maxLtv: number,
   collateralPriceUsd: number | null,
+  borrowPriceUsd: number | null,
   liquidationFactor: number
 ): LoanQuote {
+  if (mode === "collateralToBorrow") {
+    const collateralAmount = typeof collateralAmountInput === "number" ? collateralAmountInput : null;
+    const effectiveLtv = typeof targetLtvInput === "number" ? targetLtvInput : maxLtv;
+    const targetLtv = Number.isFinite(effectiveLtv) ? effectiveLtv : null;
+
+    if (
+      collateralAmount === null ||
+      targetLtv === null ||
+      collateralPriceUsd === null ||
+      collateralPriceUsd <= 0 ||
+      borrowPriceUsd === null ||
+      borrowPriceUsd <= 0 ||
+      liquidationFactor <= 0
+    ) {
+      return {
+        mode,
+        borrowUsd: null,
+        collateralAmount,
+        collateralUsd: null,
+        maxBorrowUsd: null,
+        maxBorrowAmount: null,
+        targetLtv,
+        requiredCollateralUsd: null,
+        requiredCollateralAmount: null,
+        liquidationPrice: null,
+      };
+    }
+
+    const collateralUsd = collateralAmount * collateralPriceUsd;
+    const maxBorrowUsd = collateralUsd * targetLtv;
+    const maxBorrowAmount = maxBorrowUsd / borrowPriceUsd;
+    const liquidationPrice = collateralPriceUsd * (targetLtv / liquidationFactor);
+
+    return {
+      mode,
+      borrowUsd: null,
+      collateralAmount,
+      collateralUsd,
+      maxBorrowUsd,
+      maxBorrowAmount,
+      targetLtv,
+      requiredCollateralUsd: null,
+      requiredCollateralAmount: null,
+      liquidationPrice,
+    };
+  }
+
   const borrowUsd = typeof borrowUsdInput === "number" ? borrowUsdInput : null;
   const targetLtv = typeof targetLtvInput === "number" ? targetLtvInput : null;
 
@@ -77,7 +130,12 @@ function buildQuote(
     liquidationFactor <= 0
   ) {
     return {
+      mode,
       borrowUsd,
+      collateralAmount: null,
+      collateralUsd: null,
+      maxBorrowUsd: null,
+      maxBorrowAmount: null,
       targetLtv,
       requiredCollateralUsd: null,
       requiredCollateralAmount: null,
@@ -90,7 +148,12 @@ function buildQuote(
   const liquidationPrice = collateralPriceUsd * (targetLtv / liquidationFactor);
 
   return {
+    mode,
     borrowUsd,
+    collateralAmount: null,
+    collateralUsd: null,
+    maxBorrowUsd: null,
+    maxBorrowAmount: null,
     targetLtv,
     requiredCollateralUsd,
     requiredCollateralAmount,
@@ -150,6 +213,7 @@ export function buildLoanOffersFromPools(
       const borrowApr = getAprFromStats(debtStats, "borrowApr");
       const netApy = collateralApr - borrowApr;
       const collateralPriceUsd = getUsdPrice(collateralAsset.raw);
+      const borrowPriceUsd = getUsdPrice(debtAsset.raw);
 
       offers.push({
         offerId: `vesu:${poolId}:${collateralAsset.address}:${debtAsset.address}`,
@@ -170,7 +234,16 @@ export function buildLoanOffersFromPools(
         borrowApr,
         collateralApr,
         netApy,
-        quote: buildQuote(query.borrowUsd, query.targetLtv, collateralPriceUsd, liquidationFactor),
+        quote: buildQuote(
+          query.mode,
+          query.borrowUsd,
+          query.collateralAmount,
+          query.targetLtv,
+          maxLtv,
+          collateralPriceUsd,
+          borrowPriceUsd,
+          liquidationFactor
+        ),
       });
     });
   });

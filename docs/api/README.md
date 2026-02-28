@@ -152,7 +152,9 @@ Query params:
 
 - `collateral`: required (symbol like `WBTC` or token address)
 - `borrow`: required (symbol like `USDC` or token address)
-- `borrowUsd`: optional, positive number
+- `mode`: optional, one of `borrowToCollateral | collateralToBorrow` (default: `borrowToCollateral`)
+- `borrowUsd`: optional, positive number (used by `borrowToCollateral`)
+- `collateralAmount`: optional, positive number (required by `collateralToBorrow`)
 - `targetLtv`: optional, number in `(0, 1]`
 - `sortBy`: optional, one of `netApy | maxLtv | liquidationPrice` (default: `netApy`)
 - `sortOrder`: optional, one of `asc | desc` (default: `desc`)
@@ -168,16 +170,26 @@ Behavior:
   - `borrowApr` from borrow asset stats
   - `collateralApr` from collateral `btcFiSupplyApr` when present, otherwise `supplyApy`
   - `netApy = collateralApr - borrowApr`
-- If `borrowUsd` and `targetLtv` are provided, computes:
+- In `borrowToCollateral` mode, if `borrowUsd` and `targetLtv` are provided, computes:
   - `requiredCollateralUsd = borrowUsd / targetLtv`
   - `requiredCollateralAmount = requiredCollateralUsd / collateralPriceUsd`
   - `liquidationPrice = collateralPriceUsd * (targetLtv / liquidationFactor)`
+- In `collateralToBorrow` mode (`collateralAmount` required), computes:
+  - `effectiveLtv = targetLtv ?? maxLtv`
+  - `collateralUsd = collateralAmount * collateralPriceUsd`
+  - `maxBorrowUsd = collateralUsd * effectiveLtv`
+  - `maxBorrowAmount = maxBorrowUsd / borrowPriceUsd`
+  - `liquidationPrice = collateralPriceUsd * (effectiveLtv / liquidationFactor)`
 - If quote inputs are missing, quote values are `null`
 - If `targetLtv` exceeds a pair's `maxLtv`, that offer is excluded
 
 Example:
 
 `GET /api/offers/loan?collateral=WBTC&borrow=USDC&borrowUsd=2000&targetLtv=0.5&sortBy=netApy&sortOrder=desc&page=1&limit=10`
+
+Reverse mode example:
+
+`GET /api/offers/loan?collateral=WBTC&borrow=USDC&mode=collateralToBorrow&collateralAmount=0.1&targetLtv=0.5&page=1&limit=10`
 
 Response shape:
 
@@ -198,7 +210,12 @@ Response shape:
         "collateralApr": 0.03,
         "netApy": -0.03,
         "quote": {
+          "mode": "borrowToCollateral",
           "borrowUsd": 2000,
+          "collateralAmount": null,
+          "collateralUsd": null,
+          "maxBorrowUsd": null,
+          "maxBorrowAmount": null,
           "targetLtv": 0.5,
           "requiredCollateralUsd": 4000,
           "requiredCollateralAmount": 0.0666666667,

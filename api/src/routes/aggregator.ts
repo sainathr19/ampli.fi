@@ -23,6 +23,7 @@ type Pagination = {
 
 type OfferSortBy = "netApy" | "maxLtv" | "liquidationPrice";
 type OfferSortOrder = "asc" | "desc";
+type OfferMode = "borrowToCollateral" | "collateralToBorrow";
 
 function parsePagination(req: Request): Pagination {
   const pageRaw = asString(req.query.page).trim();
@@ -167,14 +168,26 @@ router.get("/offers/loan", async (req: Request, res: Response) => {
     }
 
     const borrowUsdRaw = asString(req.query.borrowUsd).trim();
+    const collateralAmountRaw = asString(req.query.collateralAmount).trim();
     const targetLtvRaw = asString(req.query.targetLtv).trim();
+    const modeRaw = asString(req.query.mode).trim();
     const sortByRaw = asString(req.query.sortBy).trim();
     const sortOrderRaw = asString(req.query.sortOrder).trim();
+    const mode: OfferMode = modeRaw ? (modeRaw as OfferMode) : "borrowToCollateral";
+    if (!["borrowToCollateral", "collateralToBorrow"].includes(mode)) {
+      return res.status(400).json({ error: "mode must be one of borrowToCollateral, collateralToBorrow" });
+    }
 
     const borrowUsd = borrowUsdRaw ? parsePositiveNumber(borrowUsdRaw, "borrowUsd") : undefined;
+    const collateralAmount = collateralAmountRaw
+      ? parsePositiveNumber(collateralAmountRaw, "collateralAmount")
+      : undefined;
     const targetLtv = targetLtvRaw ? parsePositiveNumber(targetLtvRaw, "targetLtv") : undefined;
     if (targetLtv !== undefined && targetLtv > 1) {
       return res.status(400).json({ error: "targetLtv must be between 0 and 1" });
+    }
+    if (mode === "collateralToBorrow" && collateralAmount === undefined) {
+      return res.status(400).json({ error: "collateralAmount query parameter is required for collateralToBorrow mode" });
     }
 
     const sortBy: OfferSortBy = sortByRaw
@@ -195,7 +208,9 @@ router.get("/offers/loan", async (req: Request, res: Response) => {
     const offers = buildLoanOffersFromPools(pools, {
       collateral,
       borrow,
+      mode,
       borrowUsd,
+      collateralAmount,
       targetLtv,
     });
     const sorted = sortLoanOffers(offers, sortBy, sortOrder);
@@ -212,6 +227,7 @@ router.get("/offers/loan", async (req: Request, res: Response) => {
       msg.includes("page must") ||
       msg.includes("limit must") ||
       msg.includes("borrowUsd must") ||
+      msg.includes("collateralAmount must") ||
       msg.includes("targetLtv must")
     ) {
       return res.status(400).json({ error: msg });

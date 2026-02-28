@@ -36,7 +36,12 @@ export type UserHistoryEntry = {
 };
 
 export type LoanQuote = {
+  mode: "borrowToCollateral" | "collateralToBorrow";
   borrowUsd: number | null;
+  collateralAmount: number | null;
+  collateralUsd: number | null;
+  maxBorrowUsd: number | null;
+  maxBorrowAmount: number | null;
   targetLtv: number | null;
   requiredCollateralUsd: number | null;
   requiredCollateralAmount: number | null;
