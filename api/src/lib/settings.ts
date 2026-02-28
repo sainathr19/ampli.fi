@@ -1,0 +1,46 @@
+import * as fs from "node:fs";
+import * as path from "node:path";
+import { parse } from "@iarna/toml";
+import { z } from "zod";
+
+const DEFAULT_SETTINGS_FILE = "Settings.toml";
+
+const SettingsSchema = z
+  .object({
+    port: z.number().int().positive().default(3000),
+    vesu_api_url: z.string().default("https://api.vesu.xyz"),
+    paymaster_url: z.string().default("https://starknet.paymaster.avnu.fi"),
+    paymaster_api_key: z.string().default(""),
+    privy_app_id: z.string().min(1, "privy_app_id is required"),
+    privy_app_secret: z.string().min(1, "privy_app_secret is required"),
+    database_url: z.string().min(1, "database_url is required"),
+    atomiq_starknet_rpc_mainnet: z.string().min(1, "atomiq_starknet_rpc_mainnet is required"),
+    atomiq_starknet_rpc_testnet: z.string().min(1, "atomiq_starknet_rpc_testnet is required"),
+    atomiq_starknet_chain_id_mainnet: z.string().min(1, "atomiq_starknet_chain_id_mainnet is required"),
+    atomiq_starknet_chain_id_testnet: z.string().min(1, "atomiq_starknet_chain_id_testnet is required"),
+    bridge_recovery_interval_ms: z.number().int().positive().default(30000),
+  })
+  .passthrough();
+
+export type Settings = z.infer<typeof SettingsSchema>;
+
+export function settingsFromTOML(filePath: string = DEFAULT_SETTINGS_FILE): Settings {
+  const resolvedPath = path.isAbsolute(filePath) ? filePath : path.resolve(process.cwd(), filePath);
+
+  try {
+    const fileContent = fs.readFileSync(resolvedPath, "utf-8");
+    const parsed = parse(fileContent);
+    return SettingsSchema.parse(parsed);
+  } catch (error: unknown) {
+    if (error instanceof z.ZodError) {
+      const issues = error.issues.map((entry) => `${entry.path.join(".")}: ${entry.message}`).join(", ");
+      throw new Error(`Settings validation failed: ${issues}`);
+    }
+    if (error instanceof Error) {
+      throw new Error(`Failed to load settings from ${resolvedPath}: ${error.message}`);
+    }
+    throw new Error(`Failed to load settings from ${resolvedPath}: Unknown error`);
+  }
+}
+
+export const settings = settingsFromTOML();

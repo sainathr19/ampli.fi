@@ -4,3 +4,4 @@ ui/node_modules
 ui/dist
 ui/.env
 api/.env
+api/Settings.toml

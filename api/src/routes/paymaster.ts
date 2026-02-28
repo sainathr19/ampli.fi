@@ -1,12 +1,10 @@
 import { Router, Request, Response } from "express";
+import { settings } from "../lib/settings.js";
 
 const router = Router();
 
-const AVNU_URL = (process.env.PAYMASTER_URL || "https://starknet.paymaster.avnu.fi").replace(
-  /\/+$/,
-  ""
-);
-const API_KEY = (process.env.PAYMASTER_API_KEY ?? "").trim();
+const AVNU_URL = settings.paymaster_url.replace(/\/+$/, "");
+const API_KEY = settings.paymaster_api_key.trim();
 
 /**
  * Proxy for AVNU Paymaster - forwards all requests to AVNU with API key header.

@@ -1,14 +1,12 @@
 import { PrivyClient } from "@privy-io/node";
+import { settings } from "./settings.js";
 
 let client: PrivyClient | undefined;
 
 export function getPrivyClient(): PrivyClient {
   if (client) return client;
-  const appId = process.env.PRIVY_APP_ID;
-  const appSecret = process.env.PRIVY_APP_SECRET;
-  if (!appId || !appSecret) {
-    throw new Error("Missing PRIVY_APP_ID or PRIVY_APP_SECRET");
-  }
+  const appId = settings.privy_app_id;
+  const appSecret = settings.privy_app_secret;
   client = new PrivyClient({ appId, appSecret });
   return client;
 }

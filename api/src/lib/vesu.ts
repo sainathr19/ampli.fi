@@ -1,4 +1,6 @@
-const VESU_API_URL = (process.env.VESU_API_URL ?? "https://api.vesu.xyz").replace(/\/+$/, "");
+import { settings } from "./settings.js";
+
+const VESU_API_URL = settings.vesu_api_url.replace(/\/+$/, "");
 
 export type VesuPoolsParams = {
   onlyVerified?: boolean;

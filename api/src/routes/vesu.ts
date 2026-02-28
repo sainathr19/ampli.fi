@@ -1,8 +1,9 @@
 import { Router, Request, Response } from "express";
+import { settings } from "../lib/settings.js";
 
 const router = Router();
 
-const VESU_URL = (process.env.VESU_API_URL || "https://api.vesu.xyz").replace(/\/+$/, "");
+const VESU_URL = settings.vesu_api_url.replace(/\/+$/, "");
 
 async function proxyVesu(req: Request, res: Response) {
   try {

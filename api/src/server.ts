@@ -1,4 +1,3 @@
-import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import walletRoutes from "./routes/wallet.js";
@@ -6,17 +5,11 @@ import paymasterRoutes from "./routes/paymaster.js";
 import vesuRoutes from "./routes/vesu.js";
 import aggregatorRoutes from "./routes/aggregator.js";
 import bridgeRoutes from "./routes/bridge.js";
+import { settings } from "./lib/settings.js";
 
 const app = express();
-const PORT = Number(process.env.PORT ?? 3000);
-const CLIENT_URL = process.env.CLIENT_URL ?? "http://localhost:5173";
-
-app.use(
-  cors({
-    origin: CLIENT_URL,
-    credentials: true,
-  })
-);
+const PORT = settings.port;
+app.use(cors());
 app.use(express.json());
 
 app.get("/", (_req, res) => {

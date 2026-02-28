@@ -2,6 +2,7 @@ import { Request, Response, Router } from "express";
 import { AtomiqSdkClient } from "../lib/bridge/atomiqClient.js";
 import { BridgeService } from "../lib/bridge/bridgeService.js";
 import { PgBridgeRepository } from "../lib/bridge/repository.js";
+import { settings } from "../lib/settings.js";
 import {
   normalizeWalletAddress,
   validateCreateOrderPayload,
@@ -16,11 +17,11 @@ async function getBridgeService(): Promise<BridgeService> {
   }
 
   bridgeServicePromise = (async () => {
-    const repository = PgBridgeRepository.fromEnv();
+    const repository = PgBridgeRepository.fromSettings();
     const atomiqClient = new AtomiqSdkClient();
     const service = new BridgeService(repository, atomiqClient);
     await service.init();
-    service.startRecoveryPoller();
+    service.startRecoveryPoller(settings.bridge_recovery_interval_ms);
     return service;
   })();
 

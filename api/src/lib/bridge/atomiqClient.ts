@@ -1,6 +1,7 @@
 import { BitcoinNetwork, SwapAmountType, SwapperFactory } from "@atomiqlabs/sdk";
 import { StarknetInitializer } from "@atomiqlabs/chain-starknet";
 import { BridgeAmountType, BridgeNetwork, BridgeOrder, BridgePrepareResult, BridgeSubmitInput } from "./types.js";
+import { settings } from "../settings.js";
 
 type AtomiqSwapLike = {
   getId?: () => string;
@@ -104,13 +105,13 @@ export class AtomiqSdkClient implements AtomiqClient {
 
     const rpcUrl =
       network === "mainnet"
-        ? process.env.ATOMIQ_STARKNET_RPC_MAINNET
-        : process.env.ATOMIQ_STARKNET_RPC_TESTNET;
-    if (!rpcUrl) {
-      throw new Error(`Missing Starknet RPC URL for ${network}`);
-    }
+        ? settings.atomiq_starknet_rpc_mainnet
+        : settings.atomiq_starknet_rpc_testnet;
 
-    const chainId = network === "mainnet" ? process.env.ATOMIQ_STARKNET_CHAIN_ID_MAINNET : process.env.ATOMIQ_STARKNET_CHAIN_ID_TESTNET;
+    const chainId =
+      network === "mainnet"
+        ? settings.atomiq_starknet_chain_id_mainnet
+        : settings.atomiq_starknet_chain_id_testnet;
     const networkValue = network === "mainnet" ? BitcoinNetwork.MAINNET : BitcoinNetwork.TESTNET;
 
     const swapperPromise = this.factory.newSwapperInitialized({

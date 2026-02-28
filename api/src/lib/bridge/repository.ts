@@ -1,5 +1,6 @@
 import { Pool } from "pg";
 import { randomUUID } from "node:crypto";
+import { settings } from "../settings.js";
 import {
   BridgeActionStatus,
   BridgeActionType,
@@ -99,12 +100,8 @@ function toOrder(row: BridgeOrderRow): BridgeOrder {
 export class PgBridgeRepository implements BridgeRepository {
   constructor(private readonly pool: Pool) {}
 
-  static fromEnv(): PgBridgeRepository {
-    const connectionString = process.env.DATABASE_URL;
-    if (!connectionString) {
-      throw new Error("DATABASE_URL is required for bridge repository");
-    }
-    return new PgBridgeRepository(new Pool({ connectionString }));
+  static fromSettings(): PgBridgeRepository {
+    return new PgBridgeRepository(new Pool({ connectionString: settings.database_url }));
   }
 
   async init(): Promise<void> {
