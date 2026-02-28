@@ -12,6 +12,7 @@
   "dependencies": {
     "@atomiqlabs/chain-starknet": "^5.1.4",
     "@atomiqlabs/sdk": "^6.0.0",
+    "@privy-io/react-auth": "^3.15.0",
     "@scure/btc-signer": "^1.6.0",
     "@starknet-io/get-starknet": "^4.0.3",
     "clsx": "^2.1.1",
@@ -19,6 +20,7 @@
     "react-dom": "^18.3.1",
     "sats-connect": "4.1.x",
     "starknet": "^7.6.2",
+    "starkzap": "^1.0.0",
     "tailwind-merge": "^3.3.1",
     "zustand": "^4.5.5"
   },
