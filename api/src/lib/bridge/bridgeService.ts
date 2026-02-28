@@ -1,3 +1,5 @@
+import { log } from "../logger.js";
+import { runWithTraceAsync } from "../trace.js";
 import { AtomiqClient } from "./atomiqClient.js";
 import { BridgeRepository } from "./repository.js";
 import { mapAtomiqStateToOrderStatus } from "./stateMapper.js";
@@ -33,10 +35,13 @@ export class BridgeService {
   startRecoveryPoller(intervalMs = 30000): void {
     if (this.poller) return;
     this.poller = setInterval(() => {
-      this.reconcileActiveOrders().catch((error: unknown) => {
-        const msg = error instanceof Error ? error.message : String(error);
-        console.error("bridge recovery poller error:", msg);
-      });
+      const traceId = `recovery-${Date.now()}`;
+      runWithTraceAsync(traceId, () =>
+        this.reconcileActiveOrders().catch((error: unknown) => {
+          const msg = error instanceof Error ? error.message : String(error);
+          log.error("bridge recovery poller error", { error: msg });
+        })
+      );
     }, intervalMs);
   }
 
@@ -48,6 +53,12 @@ export class BridgeService {
   }
 
   async createOrder(input: BridgeCreateOrderInput): Promise<BridgeOrder> {
+    log.info("bridge createOrder start", {
+      network: input.network,
+      destinationAsset: input.destinationAsset,
+      amount: input.amount,
+      receiveAddress: input.receiveAddress,
+    });
     const swap = await this.atomiqClient.createIncomingSwap({
       network: input.network,
       destinationAsset: input.destinationAsset,
@@ -74,25 +85,20 @@ export class BridgeService {
       quote: order.quote,
       expiresAt: order.expiresAt,
     });
+    log.info("bridge createOrder success", {
+      orderId: order.id,
+      atomiqSwapId: order.atomiqSwapId,
+      status: order.status,
+    });
     return order;
   }
 
-  async prepareOrder(orderId: string): Promise<{ order: BridgeOrder; payload: unknown }> {
-    const order = await this.requireOrder(orderId);
-    const payload = await this.atomiqClient.prepareIncomingSwap(order);
-
-    const updated = await this.repository.updateOrder(order.id, {
-      status: "AWAITING_USER_SIGNATURE",
-    });
-
-    await this.repository.addAction(order.id, "PREPARE_ORDER", "SUCCESS", payload as Record<string, unknown>);
-    await this.repository.addEvent(order.id, "ORDER_PREPARED", order.status, updated.status, {
-      payload,
-    });
-    return { order: updated, payload };
-  }
-
   async submitOrder(orderId: string, input: BridgeSubmitInput): Promise<BridgeOrder> {
+    log.info("bridge submitOrder start", {
+      orderId,
+      hasSignedPsbt: !!input.signedPsbtBase64,
+      hasSourceTxId: !!input.sourceTxId,
+    });
     const order = await this.requireOrder(orderId);
     if (order.expiresAt && new Date(order.expiresAt).getTime() < Date.now()) {
       await this.repository.updateOrder(order.id, { status: "EXPIRED" });
@@ -112,6 +118,11 @@ export class BridgeService {
     await this.repository.addEvent(order.id, "ORDER_SUBMITTED", order.status, updated.status, {
       sourceTxId: submitResult.sourceTxId,
     });
+    log.info("bridge submitOrder success", {
+      orderId: order.id,
+      status: updated.status,
+      sourceTxId: submitResult.sourceTxId,
+    });
     return updated;
   }
 
@@ -125,21 +136,32 @@ export class BridgeService {
   }
 
   async retryOrder(orderId: string): Promise<BridgeOrder> {
+    log.info("bridge retryOrder start", { orderId });
     const order = await this.requireOrder(orderId);
     await this.repository.addAction(order.id, "MANUAL_RETRY", "SUCCESS");
-    return this.reconcileOrder(order.id);
+    const result = await this.reconcileOrder(order.id);
+    log.info("bridge retryOrder success", { orderId, status: result.status });
+    return result;
   }
 
   async reconcileActiveOrders(): Promise<void> {
     const activeOrders = await this.repository.getActiveOrders(100);
+    log.info("bridge reconcileActiveOrders start", { count: activeOrders.length });
     for (const order of activeOrders) {
       await this.reconcileOrder(order.id);
     }
+    log.info("bridge reconcileActiveOrders done", { count: activeOrders.length });
   }
 
   async reconcileOrder(orderId: string): Promise<BridgeOrder> {
     const order = await this.requireOrder(orderId);
     const snapshot = await this.atomiqClient.getOrderSnapshot(order);
+    log.info("bridge reconcileOrder snapshot", {
+      orderId,
+      statusRaw: String(snapshot.statusRaw ?? ""),
+      isClaimable: snapshot.isClaimable,
+      isRefundable: snapshot.isRefundable,
+    });
 
     let nextStatus = mapAtomiqStateToOrderStatus(snapshot.statusRaw);
     let destinationTxId = snapshot.destinationTxId;
@@ -187,7 +209,12 @@ export class BridgeService {
       sourceTxId: snapshot.sourceTxId,
       destinationTxId,
     });
-
+    log.info("bridge reconcileOrder success", {
+      orderId: order.id,
+      fromStatus: order.status,
+      toStatus: updated.status,
+      destinationTxId,
+    });
     return updated;
   }
 

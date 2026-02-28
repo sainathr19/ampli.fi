@@ -400,6 +400,8 @@ Response:
   "data": {
     "orderId": "uuid",
     "status": "CREATED",
+    "depositAddress": "bc1...",
+    "amountSats": "10000000",
     "quote": {
       "amountIn": "10000000",
       "amountOut": "9990000",
@@ -410,18 +412,8 @@ Response:
 }
 ```
 
-### `POST /api/bridge/orders/:id/prepare`
-
-Build user-side action payload for funding/signing.
-
-Response action variants:
-
-- `SIGN_PSBT`:
-  - `psbtBase64`
-  - `signInputs`
-- `ADDRESS`:
-  - `depositAddress`
-  - `amountSats`
+- `depositAddress`: BTC address to send to. Send exactly `amountSats` satoshis in a single transaction.
+- `amountSats`: Amount to send in satoshis.
 
 ### `POST /api/bridge/orders/:id/submit`
 
@@ -465,13 +457,12 @@ The backend runs a periodic poller and attempts:
 - auto-refund when swap becomes refundable
 - action/event logging in `bridge_actions` and `bridge_events`
 
-## Frontend Flow (PSBT path)
+## Frontend Flow
 
-1. Create order (`POST /orders`)
-2. Prepare action payload (`POST /orders/:id/prepare`)
-3. Sign `psbtBase64` in BTC wallet
-4. Submit signature (`POST /orders/:id/submit`)
-5. Poll status (`GET /orders/:id`) or use history (`GET /orders`)
+1. Create order (`POST /orders`) – response includes `depositAddress` and `amountSats`
+2. Send exactly `amountSats` satoshis to `depositAddress` in a single BTC transaction
+3. Submit `sourceTxId` after confirmation (`POST /orders/:id/submit`)
+4. Poll status (`GET /orders/:id`) or use history (`GET /orders`)
 
 ## Wallet Endpoints (write / non-read-only)
 

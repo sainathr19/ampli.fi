@@ -6,6 +6,7 @@ import vesuRoutes from "./routes/vesu.js";
 import aggregatorRoutes from "./routes/aggregator.js";
 import bridgeRoutes from "./routes/bridge.js";
 import earnRoutes from "./routes/earn.js";
+import { traceMiddleware } from "./middleware/trace.js";
 import { settings } from "./lib/settings.js";
 import { runMigrations } from "./db/migrate.js";
 
@@ -13,6 +14,7 @@ const app = express();
 const PORT = settings.port;
 app.use(cors());
 app.use(express.json());
+app.use(traceMiddleware);
 
 app.get("/", (_req, res) => {
   res.json("Online");

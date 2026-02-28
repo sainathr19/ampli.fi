@@ -1,7 +1,8 @@
 import { BitcoinNetwork, SwapAmountType, SwapperFactory } from "@atomiqlabs/sdk";
 import { StarknetInitializer } from "@atomiqlabs/chain-starknet";
 import { RpcProvider } from "starknet";
-import { BridgeAmountType, BridgeNetwork, BridgeOrder, BridgePrepareResult, BridgeSubmitInput } from "./types.js";
+import { log } from "../logger.js";
+import { BridgeAmountType, BridgeNetwork, BridgeOrder, BridgeSubmitInput } from "./types.js";
 import { settings } from "../settings.js";
 import { PostgresUnifiedStorage } from "./postgresStorage.js";
 import { InMemoryChainStorage } from "./inMemoryStorage.js";
@@ -61,42 +62,8 @@ function getAmountLike(value: unknown): string | null {
   return amount == null ? null : String(amount);
 }
 
-function parsePrepareResult(raw: unknown): BridgePrepareResult {
-  const steps = Array.isArray(raw) ? raw : [];
-  for (const step of steps) {
-    if (!step || typeof step !== "object") continue;
-    const entry = step as Record<string, unknown>;
-    if (entry.name !== "Payment") continue;
-    const txs = Array.isArray(entry.txs) ? entry.txs : [];
-    for (const tx of txs) {
-      if (!tx || typeof tx !== "object") continue;
-      const item = tx as Record<string, unknown>;
-      if (item.type === "FUNDED_PSBT") {
-        return {
-          type: "SIGN_PSBT",
-          psbtBase64: typeof item.psbtBase64 === "string" ? item.psbtBase64 : undefined,
-          signInputs: Array.isArray(item.signInputs)
-            ? item.signInputs.filter((v): v is number => typeof v === "number")
-            : undefined,
-          raw: item,
-        };
-      }
-      if (item.type === "ADDRESS") {
-        return {
-          type: "ADDRESS",
-          depositAddress: typeof item.address === "string" ? item.address : undefined,
-          amountSats: item.amount == null ? undefined : String(item.amount),
-          raw: item,
-        };
-      }
-    }
-  }
-  return { type: "ADDRESS", raw };
-}
-
 export interface AtomiqClient {
   createIncomingSwap(input: CreateIncomingSwapInput): Promise<CreateIncomingSwapResult>;
-  prepareIncomingSwap(order: BridgeOrder): Promise<BridgePrepareResult>;
   submitIncomingSwap(order: BridgeOrder, input: BridgeSubmitInput): Promise<{ sourceTxId: string | null }>;
   getOrderSnapshot(order: BridgeOrder): Promise<AtomiqOrderSnapshot>;
   tryClaim(order: BridgeOrder): Promise<{ success: boolean; txId?: string }>;
@@ -149,6 +116,12 @@ export class AtomiqSdkClient implements AtomiqClient {
   }
 
   async createIncomingSwap(input: CreateIncomingSwapInput): Promise<CreateIncomingSwapResult> {
+    log.info("atomiq createIncomingSwap start", {
+      network: input.network,
+      destinationAsset: input.destinationAsset,
+      amount: input.amount,
+      receiveAddress: input.receiveAddress,
+    });
     const swapper = await this.getSwapper(input.network);
     const amountType = input.amountType === "exactOut" ? SwapAmountType.EXACT_OUT : SwapAmountType.EXACT_IN;
     const tokens = (this.factory as any).Tokens.STARKNET as Record<string, unknown>;
@@ -197,6 +170,12 @@ export class AtomiqSdkClient implements AtomiqClient {
     };
 
     const timeout = swap.getTimeoutTime?.();
+    log.info("atomiq createIncomingSwap success", {
+      atomiqSwapId,
+      amountSource,
+      amountDestination,
+      depositAddress: swap.getAddress?.(),
+    });
     return {
       atomiqSwapId,
       statusRaw: swap.getState?.(),
@@ -207,32 +186,27 @@ export class AtomiqSdkClient implements AtomiqClient {
     };
   }
 
-  async prepareIncomingSwap(order: BridgeOrder): Promise<BridgePrepareResult> {
-    const swap = await this.getSwap(order);
-    if (!swap.txsExecute) {
-      return {
-        type: "ADDRESS",
-        depositAddress: swap.getAddress?.(),
-      };
-    }
-
-    const raw = await swap.txsExecute();
-    return parsePrepareResult(raw);
-  }
-
   async submitIncomingSwap(order: BridgeOrder, input: BridgeSubmitInput): Promise<{ sourceTxId: string | null }> {
+    log.info("atomiq submitIncomingSwap start", {
+      orderId: order.id,
+      hasSignedPsbt: !!input.signedPsbtBase64,
+      hasSourceTxId: !!input.sourceTxId,
+    });
     const swap = await this.getSwap(order);
     if (input.signedPsbtBase64 && swap.submitPsbt) {
       const txId = await swap.submitPsbt(input.signedPsbtBase64);
+      log.info("atomiq submitIncomingSwap success", { orderId: order.id, sourceTxId: txId });
       return { sourceTxId: txId };
     }
     if (input.sourceTxId) {
+      log.info("atomiq submitIncomingSwap success", { orderId: order.id, sourceTxId: input.sourceTxId });
       return { sourceTxId: input.sourceTxId };
     }
     throw new Error("Either signedPsbtBase64 or sourceTxId must be provided");
   }
 
   async getOrderSnapshot(order: BridgeOrder): Promise<AtomiqOrderSnapshot> {
+    log.info("atomiq getOrderSnapshot", { orderId: order.id });
     const swap = await this.getSwap(order);
     const statusRaw = swap.getState?.();
     return {
@@ -250,18 +224,24 @@ export class AtomiqSdkClient implements AtomiqClient {
   async tryClaim(order: BridgeOrder): Promise<{ success: boolean; txId?: string }> {
     const swap = await this.getSwap(order);
     if (!swap.isClaimable?.() || !swap.claim) {
+      log.info("atomiq tryClaim skip", { orderId: order.id, reason: "not claimable" });
       return { success: false };
     }
+    log.info("atomiq tryClaim start", { orderId: order.id });
     const txId = await swap.claim();
+    log.info("atomiq tryClaim success", { orderId: order.id, txId });
     return { success: true, txId };
   }
 
   async tryRefund(order: BridgeOrder): Promise<{ success: boolean; txId?: string }> {
     const swap = await this.getSwap(order);
     if (!swap.isRefundable?.() || !swap.refund) {
+      log.info("atomiq tryRefund skip", { orderId: order.id, reason: "not refundable" });
       return { success: false };
     }
+    log.info("atomiq tryRefund start", { orderId: order.id });
     const txId = await swap.refund();
+    log.info("atomiq tryRefund success", { orderId: order.id, txId });
     return { success: true, txId };
   }
 }

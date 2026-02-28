@@ -1,4 +1,5 @@
 import { Request, Response, Router } from "express";
+import { log } from "../lib/logger.js";
 import { AtomiqSdkClient } from "../lib/bridge/atomiqClient.js";
 import { BridgeService } from "../lib/bridge/bridgeService.js";
 import { PgBridgeRepository } from "../lib/bridge/repository.js";
@@ -51,21 +52,30 @@ function handleRouteError(res: Response, error: unknown): Response {
 
 type BridgeServiceLike = Pick<
   BridgeService,
-  "createOrder" | "prepareOrder" | "submitOrder" | "getOrder" | "listOrders" | "retryOrder"
+  "createOrder" | "submitOrder" | "getOrder" | "listOrders" | "retryOrder"
 >;
 
 export function createBridgeRouter(serviceResolver: () => Promise<BridgeServiceLike>): Router {
   const router = Router();
 
   router.post("/orders", async (req: Request, res: Response) => {
+    log.info("bridge route POST /orders", {
+      network: (req.body as Record<string, unknown>)?.network,
+      destinationAsset: (req.body as Record<string, unknown>)?.destinationAsset,
+      amount: (req.body as Record<string, unknown>)?.amount,
+      amountType: (req.body as Record<string, unknown>)?.amountType,
+    });
     try {
       const payload = validateCreateOrderPayload(req.body);
       const service = await serviceResolver();
       const order = await service.createOrder(payload);
+      const quote = order.quote ?? {};
       return res.status(201).json({
         data: {
           orderId: order.id,
           status: order.status,
+          depositAddress: quote.depositAddress ?? null,
+          amountSats: quote.amountIn ?? null,
           quote: order.quote,
           expiresAt: order.expiresAt,
         },
@@ -75,28 +85,12 @@ export function createBridgeRouter(serviceResolver: () => Promise<BridgeServiceL
     }
   });
 
-  router.post("/orders/:id/prepare", async (req: Request, res: Response) => {
-    try {
-      const orderId = req.params.id?.trim();
-      if (!orderId) {
-        return res.status(400).json({ error: "order id is required" });
-      }
-
-      const service = await serviceResolver();
-      const result = await service.prepareOrder(orderId);
-      return res.json({
-        data: {
-          orderId: result.order.id,
-          status: result.order.status,
-          action: result.payload,
-        },
-      });
-    } catch (error: unknown) {
-      return handleRouteError(res, error);
-    }
-  });
-
   router.post("/orders/:id/submit", async (req: Request, res: Response) => {
+    log.info("bridge route POST /orders/:id/submit", {
+      orderId: req.params.id,
+      hasSignedPsbt: !!(req.body?.signedPsbtBase64),
+      hasSourceTxId: !!(req.body?.sourceTxId),
+    });
     try {
       const orderId = req.params.id?.trim();
       if (!orderId) {
@@ -122,6 +116,7 @@ export function createBridgeRouter(serviceResolver: () => Promise<BridgeServiceL
   });
 
   router.get("/orders/:id", async (req: Request, res: Response) => {
+    log.info("bridge route GET /orders/:id", { orderId: req.params.id });
     try {
       const orderId = req.params.id?.trim();
       if (!orderId) {
@@ -136,6 +131,11 @@ export function createBridgeRouter(serviceResolver: () => Promise<BridgeServiceL
   });
 
   router.get("/orders", async (req: Request, res: Response) => {
+    log.info("bridge route GET /orders", {
+      walletAddress: req.query.walletAddress,
+      page: req.query.page,
+      limit: req.query.limit,
+    });
     try {
       const walletAddress = normalizeWalletAddress(String(req.query.walletAddress ?? ""));
       if (!walletAddress) {
@@ -153,6 +153,7 @@ export function createBridgeRouter(serviceResolver: () => Promise<BridgeServiceL
   });
 
   router.post("/orders/:id/retry", async (req: Request, res: Response) => {
+    log.info("bridge route POST /orders/:id/retry", { orderId: req.params.id });
     try {
       const orderId = req.params.id?.trim();
       if (!orderId) {

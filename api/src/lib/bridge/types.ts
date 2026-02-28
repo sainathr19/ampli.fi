@@ -35,16 +35,6 @@ export type BridgeCreateOrderInput = {
   walletAddress: string;
 };
 
-export type BridgePrepareResult = {
-  type: "SIGN_PSBT" | "ADDRESS";
-  psbtBase64?: string;
-  signInputs?: number[];
-  depositAddress?: string;
-  amountSats?: string;
-  constraints?: Record<string, unknown>;
-  raw?: unknown;
-};
-
 export type BridgeSubmitInput = {
   signedPsbtBase64?: string;
   sourceTxId?: string;

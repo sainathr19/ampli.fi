@@ -47,7 +47,6 @@ function makeEmptyPage(): BridgeOrderPage {
 
 function createApp(service: {
   createOrder: (...args: unknown[]) => Promise<BridgeOrder>;
-  prepareOrder: (...args: unknown[]) => Promise<{ order: BridgeOrder; payload: unknown }>;
   submitOrder: (...args: unknown[]) => Promise<BridgeOrder>;
   getOrder: (...args: unknown[]) => Promise<BridgeOrder>;
   listOrders: (...args: unknown[]) => Promise<BridgeOrderPage>;
@@ -62,7 +61,6 @@ function createApp(service: {
 test("POST /api/bridge/orders validates Starknet receive address", async () => {
   const app = createApp({
     createOrder: async () => makeOrder(),
-    prepareOrder: async () => ({ order: makeOrder(), payload: {} }),
     submitOrder: async () => makeOrder(),
     getOrder: async () => makeOrder(),
     listOrders: async () => makeEmptyPage(),
@@ -82,15 +80,18 @@ test("POST /api/bridge/orders validates Starknet receive address", async () => {
   assert.match(res.body.error, /receiveAddress must be a valid Starknet address/);
 });
 
-test("POST /api/bridge/orders creates order with quote summary", async () => {
+test("POST /api/bridge/orders creates order with deposit address and amount", async () => {
   const app = createApp({
     createOrder: async () =>
       makeOrder({
         status: "CREATED",
-        quote: { amountIn: "10000", amountOut: "99700000" },
+        quote: {
+          amountIn: "10000",
+          amountOut: "99700000",
+          depositAddress: "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh",
+        },
         expiresAt: "2030-01-01T00:00:00.000Z",
       }),
-    prepareOrder: async () => ({ order: makeOrder(), payload: {} }),
     submitOrder: async () => makeOrder(),
     getOrder: async () => makeOrder(),
     listOrders: async () => makeEmptyPage(),
@@ -110,25 +111,7 @@ test("POST /api/bridge/orders creates order with quote summary", async () => {
   assert.equal(res.status, 201);
   assert.equal(res.body.data.orderId, "order-1");
   assert.equal(res.body.data.status, "CREATED");
-  assert.equal(res.body.data.quote.amountIn, "10000");
+  assert.equal(res.body.data.depositAddress, "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh");
+  assert.equal(res.body.data.amountSats, "10000");
 });
 
-test("POST /api/bridge/orders/:id/prepare returns action payload", async () => {
-  const app = createApp({
-    createOrder: async () => makeOrder(),
-    prepareOrder: async () => ({
-      order: makeOrder({ status: "AWAITING_USER_SIGNATURE" }),
-      payload: { type: "SIGN_PSBT", psbtBase64: "abc" },
-    }),
-    submitOrder: async () => makeOrder(),
-    getOrder: async () => makeOrder(),
-    listOrders: async () => makeEmptyPage(),
-    retryOrder: async () => makeOrder(),
-  });
-
-  const res = await request(app).post("/api/bridge/orders/order-1/prepare").send({});
-
-  assert.equal(res.status, 200);
-  assert.equal(res.body.data.status, "AWAITING_USER_SIGNATURE");
-  assert.equal(res.body.data.action.type, "SIGN_PSBT");
-});

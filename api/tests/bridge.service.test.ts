@@ -117,7 +117,6 @@ test("BridgeService creates and submits order lifecycle", async () => {
       quote: { amountIn: "10000", amountOut: "9700000" },
       expiresAt: "2030-01-01T00:00:00.000Z",
     }),
-    prepareIncomingSwap: async () => ({ type: "SIGN_PSBT", psbtBase64: "abc" }),
     submitIncomingSwap: async () => ({ sourceTxId: "btc-tx-1" }),
     getOrderSnapshot: async () => ({
       statusRaw: "BTC_TX_CONFIRMED",
@@ -136,10 +135,7 @@ test("BridgeService creates and submits order lifecycle", async () => {
   assert.equal(order.status, "CREATED");
   assert.equal(order.atomiqSwapId, "swap-1");
 
-  const prepare = await service.prepareOrder(order.id);
-  assert.equal(prepare.order.status, "AWAITING_USER_SIGNATURE");
-
-  const submitted = await service.submitOrder(order.id, { signedPsbtBase64: "abc" });
+  const submitted = await service.submitOrder(order.id, { sourceTxId: "btc-tx-1" });
   assert.equal(submitted.status, "SOURCE_SUBMITTED");
   assert.equal(submitted.sourceTxId, "btc-tx-1");
 });
@@ -156,7 +152,6 @@ test("BridgeService reconcile attempts auto-claim", async () => {
     createIncomingSwap: async () => {
       throw new Error("not used");
     },
-    prepareIncomingSwap: async () => ({ type: "ADDRESS", depositAddress: "bc1..." }),
     submitIncomingSwap: async () => ({ sourceTxId: "tx" }),
     getOrderSnapshot: async () => ({
       statusRaw: "BTC_TX_CONFIRMED",
