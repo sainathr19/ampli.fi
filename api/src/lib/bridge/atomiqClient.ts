@@ -1,5 +1,6 @@
 import { BitcoinNetwork, SwapAmountType, SwapperFactory } from "@atomiqlabs/sdk";
 import { StarknetInitializer } from "@atomiqlabs/chain-starknet";
+import { RpcProvider } from "starknet";
 import { BridgeAmountType, BridgeNetwork, BridgeOrder, BridgePrepareResult, BridgeSubmitInput } from "./types.js";
 import { settings } from "../settings.js";
 
@@ -102,7 +103,8 @@ export class AtomiqSdkClient implements AtomiqClient {
       return this.swapperPromise;
     }
 
-    const chainId = settings.network === "mainnet" ? "SN_MAIN" : "SN_SEPOLIA";
+    const provider = new RpcProvider({ nodeUrl: settings.rpc_url });
+    const chainId = await provider.getChainId();
     const networkValue = settings.network === "mainnet" ? BitcoinNetwork.MAINNET : BitcoinNetwork.TESTNET;
 
     this.swapperPromise = this.factory.newSwapperInitialized({
