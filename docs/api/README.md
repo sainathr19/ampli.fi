@@ -235,6 +235,110 @@ Response shape:
 }
 ```
 
+## Earn Endpoints
+
+All earn data is protocol-tagged and paginated. Supports multiprotocol aggregation (e.g. `native_staking`).
+
+Pagination: same as aggregator (`page`, `limit`, `meta`).
+
+### `GET /api/earn/pools`
+
+Query params:
+
+- `protocol`: filter by protocol (optional)
+- `validator`: filter by validator staker address (optional)
+- `page`, `limit` (optional pagination)
+
+Example:
+
+`GET /api/earn/pools?protocol=native_staking&page=1&limit=10`
+
+Response item shape:
+
+```json
+{
+  "protocol": "native_staking",
+  "data": {
+    "id": "0xval:0xpool",
+    "poolContract": "0x...",
+    "validator": { "name": "Validator", "stakerAddress": "0x..." },
+    "token": { "symbol": "STRK", "address": "0x...", "decimals": 18 },
+    "delegatedAmount": "1000",
+    "commissionPercent": 10
+  }
+}
+```
+
+### `GET /api/earn/positions`
+
+Query params:
+
+- `walletAddress`: required
+- `protocol`: filter by protocol (optional)
+- `page`, `limit` (optional pagination)
+
+Example:
+
+`GET /api/earn/positions?walletAddress=0x...&page=1&limit=20`
+
+Response item shape:
+
+```json
+{
+  "protocol": "native_staking",
+  "data": {
+    "poolContract": "0x...",
+    "token": { "symbol": "STRK", "address": "0x...", "decimals": 18 },
+    "staked": "100",
+    "rewards": "5",
+    "total": "105",
+    "unpooling": "0",
+    "unpoolTime": null,
+    "commissionPercent": 10,
+    "rewardAddress": "0x...",
+    "walletAddress": "0x..."
+  }
+}
+```
+
+### `GET /api/earn/users/:address/history`
+
+Path params:
+
+- `address`: required (Starknet address)
+
+Query params:
+
+- `protocol`: filter by protocol (optional)
+- `type`: filter by event type (`stake` | `add` | `claim` | `exit_intent` | `exit`) (optional)
+- `page`, `limit` (optional pagination)
+
+Behavior:
+
+- Fetches stake/claim history on-demand from RPC (last 10 pages or 24h blocks)
+- Returns entries tagged with protocol
+
+Example:
+
+`GET /api/earn/users/0x.../history?type=stake&page=1&limit=20`
+
+Response item shape:
+
+```json
+{
+  "protocol": "native_staking",
+  "data": {
+    "type": "stake",
+    "poolContract": "0x...",
+    "txHash": "0x...",
+    "timestamp": 1700000000,
+    "amount": "100",
+    "token": { "symbol": "STRK", "address": "0x...", "decimals": 18 },
+    "userAddress": "0x..."
+  }
+}
+```
+
 ## Vesu Proxy Endpoint
 
 ### `ALL /api/vesu/*`
