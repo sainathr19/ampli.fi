@@ -415,24 +415,6 @@ Response:
 - `depositAddress`: BTC address to send to. Send exactly `amountSats` satoshis in a single transaction.
 - `amountSats`: Amount to send in satoshis.
 
-### `POST /api/bridge/orders/:id/submit`
-
-Submit signed funding payload.
-
-Request body:
-
-```json
-{
-  "signedPsbtBase64": "cHNidP8B...",
-  "sourceTxId": "optional-if-no-psbt"
-}
-```
-
-Notes:
-
-- At least one of `signedPsbtBase64` or `sourceTxId` is required.
-- Quote expiry is checked before submit.
-
 ### `GET /api/bridge/orders/:id`
 
 Fetch full order state:
@@ -451,18 +433,20 @@ Manually trigger reconcile/recovery for an order.
 
 ## Bridge Recovery
 
-The backend runs a periodic poller and attempts:
+The backend runs a periodic poller that:
 
-- auto-claim when swap becomes claimable
-- auto-refund when swap becomes refundable
-- action/event logging in `bridge_actions` and `bridge_events`
+- Polls Atomiq for swap state (Atomiq auto-detects funding tx on the deposit address)
+- Auto-claims when swap becomes claimable
+- Auto-refunds when swap becomes refundable
+- Logs actions/events in `bridge_actions` and `bridge_events`
+
+No submit step is required. After the user broadcasts the BTC tx, Atomiq detects it and the poller reconciles the order.
 
 ## Frontend Flow
 
 1. Create order (`POST /orders`) – response includes `depositAddress` and `amountSats`
-2. Send exactly `amountSats` satoshis to `depositAddress` in a single BTC transaction
-3. Submit `sourceTxId` after confirmation (`POST /orders/:id/submit`)
-4. Poll status (`GET /orders/:id`) or use history (`GET /orders`)
+2. Send exactly `amountSats` satoshis to `depositAddress` in a single BTC transaction (broadcast from any wallet)
+3. Poll status (`GET /orders/:id`) or use history (`GET /orders`) – the recovery poller detects when Atomiq sees the tx and updates the order
 
 ## Wallet Endpoints (write / non-read-only)
 

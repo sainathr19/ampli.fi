@@ -35,11 +35,6 @@ export type BridgeCreateOrderInput = {
   walletAddress: string;
 };
 
-export type BridgeSubmitInput = {
-  signedPsbtBase64?: string;
-  sourceTxId?: string;
-};
-
 export type BridgeOrder = {
   id: string;
   network: BridgeNetwork;

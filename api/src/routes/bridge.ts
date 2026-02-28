@@ -52,7 +52,7 @@ function handleRouteError(res: Response, error: unknown): Response {
 
 type BridgeServiceLike = Pick<
   BridgeService,
-  "createOrder" | "submitOrder" | "getOrder" | "listOrders" | "retryOrder"
+  "createOrder" | "getOrder" | "listOrders" | "retryOrder"
 >;
 
 export function createBridgeRouter(serviceResolver: () => Promise<BridgeServiceLike>): Router {
@@ -80,36 +80,6 @@ export function createBridgeRouter(serviceResolver: () => Promise<BridgeServiceL
           expiresAt: order.expiresAt,
         },
       });
-    } catch (error: unknown) {
-      return handleRouteError(res, error);
-    }
-  });
-
-  router.post("/orders/:id/submit", async (req: Request, res: Response) => {
-    log.info("bridge route POST /orders/:id/submit", {
-      orderId: req.params.id,
-      hasSignedPsbt: !!(req.body?.signedPsbtBase64),
-      hasSourceTxId: !!(req.body?.sourceTxId),
-    });
-    try {
-      const orderId = req.params.id?.trim();
-      if (!orderId) {
-        return res.status(400).json({ error: "order id is required" });
-      }
-
-      const body = (req.body ?? {}) as Record<string, unknown>;
-      const signedPsbtBase64 = typeof body.signedPsbtBase64 === "string" ? body.signedPsbtBase64.trim() : "";
-      const sourceTxId = typeof body.sourceTxId === "string" ? body.sourceTxId.trim() : "";
-      if (!signedPsbtBase64 && !sourceTxId) {
-        return res.status(400).json({ error: "signedPsbtBase64 or sourceTxId is required" });
-      }
-
-      const service = await serviceResolver();
-      const order = await service.submitOrder(orderId, {
-        signedPsbtBase64: signedPsbtBase64 || undefined,
-        sourceTxId: sourceTxId || undefined,
-      });
-      return res.json({ data: order });
     } catch (error: unknown) {
       return handleRouteError(res, error);
     }

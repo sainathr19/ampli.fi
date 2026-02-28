@@ -2,7 +2,7 @@ import { BitcoinNetwork, SwapAmountType, SwapperFactory } from "@atomiqlabs/sdk"
 import { StarknetInitializer } from "@atomiqlabs/chain-starknet";
 import { RpcProvider } from "starknet";
 import { log } from "../logger.js";
-import { BridgeAmountType, BridgeNetwork, BridgeOrder, BridgeSubmitInput } from "./types.js";
+import { BridgeAmountType, BridgeNetwork, BridgeOrder } from "./types.js";
 import { settings } from "../settings.js";
 import { PostgresUnifiedStorage } from "./postgresStorage.js";
 import { InMemoryChainStorage } from "./inMemoryStorage.js";
@@ -22,7 +22,6 @@ type AtomiqSwapLike = {
   getInputTxId?: () => string | null;
   getOutputTxId?: () => string | null;
   txsExecute?: (options?: Record<string, unknown>) => Promise<unknown>;
-  submitPsbt?: (psbt: string) => Promise<string>;
   claim?: (...args: unknown[]) => Promise<string>;
   refund?: (...args: unknown[]) => Promise<string>;
   isClaimable?: () => boolean;
@@ -64,7 +63,6 @@ function getAmountLike(value: unknown): string | null {
 
 export interface AtomiqClient {
   createIncomingSwap(input: CreateIncomingSwapInput): Promise<CreateIncomingSwapResult>;
-  submitIncomingSwap(order: BridgeOrder, input: BridgeSubmitInput): Promise<{ sourceTxId: string | null }>;
   getOrderSnapshot(order: BridgeOrder): Promise<AtomiqOrderSnapshot>;
   tryClaim(order: BridgeOrder): Promise<{ success: boolean; txId?: string }>;
   tryRefund(order: BridgeOrder): Promise<{ success: boolean; txId?: string }>;
@@ -184,25 +182,6 @@ export class AtomiqSdkClient implements AtomiqClient {
       amountSource,
       amountDestination,
     };
-  }
-
-  async submitIncomingSwap(order: BridgeOrder, input: BridgeSubmitInput): Promise<{ sourceTxId: string | null }> {
-    log.info("atomiq submitIncomingSwap start", {
-      orderId: order.id,
-      hasSignedPsbt: !!input.signedPsbtBase64,
-      hasSourceTxId: !!input.sourceTxId,
-    });
-    const swap = await this.getSwap(order);
-    if (input.signedPsbtBase64 && swap.submitPsbt) {
-      const txId = await swap.submitPsbt(input.signedPsbtBase64);
-      log.info("atomiq submitIncomingSwap success", { orderId: order.id, sourceTxId: txId });
-      return { sourceTxId: txId };
-    }
-    if (input.sourceTxId) {
-      log.info("atomiq submitIncomingSwap success", { orderId: order.id, sourceTxId: input.sourceTxId });
-      return { sourceTxId: input.sourceTxId };
-    }
-    throw new Error("Either signedPsbtBase64 or sourceTxId must be provided");
   }
 
   async getOrderSnapshot(order: BridgeOrder): Promise<AtomiqOrderSnapshot> {

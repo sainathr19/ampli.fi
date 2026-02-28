@@ -19,6 +19,8 @@ class InMemoryBridgeRepository implements BridgeRepository {
       destinationAsset: args.input.destinationAsset,
       amount: args.input.amount,
       amountType: args.input.amountType,
+      amountSource: args.amountSource ?? null,
+      amountDestination: args.amountDestination ?? null,
       receiveAddress: args.input.receiveAddress,
       walletAddress: args.input.walletAddress,
       status: args.status,
@@ -108,7 +110,7 @@ function defaultInput(): BridgeCreateOrderInput {
   };
 }
 
-test("BridgeService creates and submits order lifecycle", async () => {
+test("BridgeService create and reconcile detects Atomiq state", async () => {
   const repo = new InMemoryBridgeRepository();
   const atomiq: AtomiqClient = {
     createIncomingSwap: async () => ({
@@ -116,8 +118,9 @@ test("BridgeService creates and submits order lifecycle", async () => {
       statusRaw: "PR_CREATED",
       quote: { amountIn: "10000", amountOut: "9700000" },
       expiresAt: "2030-01-01T00:00:00.000Z",
+      amountSource: "10000",
+      amountDestination: "9700000",
     }),
-    submitIncomingSwap: async () => ({ sourceTxId: "btc-tx-1" }),
     getOrderSnapshot: async () => ({
       statusRaw: "BTC_TX_CONFIRMED",
       sourceTxId: "btc-tx-1",
@@ -135,9 +138,9 @@ test("BridgeService creates and submits order lifecycle", async () => {
   assert.equal(order.status, "CREATED");
   assert.equal(order.atomiqSwapId, "swap-1");
 
-  const submitted = await service.submitOrder(order.id, { sourceTxId: "btc-tx-1" });
-  assert.equal(submitted.status, "SOURCE_SUBMITTED");
-  assert.equal(submitted.sourceTxId, "btc-tx-1");
+  const reconciled = await service.reconcileOrder(order.id);
+  assert.equal(reconciled.status, "SOURCE_CONFIRMED");
+  assert.equal(reconciled.sourceTxId, "btc-tx-1");
 });
 
 test("BridgeService reconcile attempts auto-claim", async () => {
@@ -152,7 +155,6 @@ test("BridgeService reconcile attempts auto-claim", async () => {
     createIncomingSwap: async () => {
       throw new Error("not used");
     },
-    submitIncomingSwap: async () => ({ sourceTxId: "tx" }),
     getOrderSnapshot: async () => ({
       statusRaw: "BTC_TX_CONFIRMED",
       sourceTxId: "btc-tx-1",

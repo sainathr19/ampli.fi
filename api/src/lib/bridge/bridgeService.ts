@@ -3,7 +3,7 @@ import { runWithTraceAsync } from "../trace.js";
 import { AtomiqClient } from "./atomiqClient.js";
 import { BridgeRepository } from "./repository.js";
 import { mapAtomiqStateToOrderStatus } from "./stateMapper.js";
-import { BridgeCreateOrderInput, BridgeOrder, BridgeOrderPage, BridgeSubmitInput } from "./types.js";
+import { BridgeCreateOrderInput, BridgeOrder, BridgeOrderPage } from "./types.js";
 
 const MAX_LIST_LIMIT = 100;
 
@@ -91,39 +91,6 @@ export class BridgeService {
       status: order.status,
     });
     return order;
-  }
-
-  async submitOrder(orderId: string, input: BridgeSubmitInput): Promise<BridgeOrder> {
-    log.info("bridge submitOrder start", {
-      orderId,
-      hasSignedPsbt: !!input.signedPsbtBase64,
-      hasSourceTxId: !!input.sourceTxId,
-    });
-    const order = await this.requireOrder(orderId);
-    if (order.expiresAt && new Date(order.expiresAt).getTime() < Date.now()) {
-      await this.repository.updateOrder(order.id, { status: "EXPIRED" });
-      throw new Error("Order quote expired");
-    }
-
-    const submitResult = await this.atomiqClient.submitIncomingSwap(order, input);
-    const updated = await this.repository.updateOrder(order.id, {
-      status: "SOURCE_SUBMITTED",
-      sourceTxId: submitResult.sourceTxId,
-      lastError: null,
-    });
-
-    await this.repository.addAction(order.id, "SUBMIT_ORDER", "SUCCESS", {
-      sourceTxId: submitResult.sourceTxId,
-    });
-    await this.repository.addEvent(order.id, "ORDER_SUBMITTED", order.status, updated.status, {
-      sourceTxId: submitResult.sourceTxId,
-    });
-    log.info("bridge submitOrder success", {
-      orderId: order.id,
-      status: updated.status,
-      sourceTxId: submitResult.sourceTxId,
-    });
-    return updated;
   }
 
   async getOrder(orderId: string): Promise<BridgeOrder> {

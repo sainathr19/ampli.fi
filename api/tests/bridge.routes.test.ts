@@ -47,7 +47,6 @@ function makeEmptyPage(): BridgeOrderPage {
 
 function createApp(service: {
   createOrder: (...args: unknown[]) => Promise<BridgeOrder>;
-  submitOrder: (...args: unknown[]) => Promise<BridgeOrder>;
   getOrder: (...args: unknown[]) => Promise<BridgeOrder>;
   listOrders: (...args: unknown[]) => Promise<BridgeOrderPage>;
   retryOrder: (...args: unknown[]) => Promise<BridgeOrder>;
@@ -61,7 +60,6 @@ function createApp(service: {
 test("POST /api/bridge/orders validates Starknet receive address", async () => {
   const app = createApp({
     createOrder: async () => makeOrder(),
-    submitOrder: async () => makeOrder(),
     getOrder: async () => makeOrder(),
     listOrders: async () => makeEmptyPage(),
     retryOrder: async () => makeOrder(),
@@ -92,7 +90,6 @@ test("POST /api/bridge/orders creates order with deposit address and amount", as
         },
         expiresAt: "2030-01-01T00:00:00.000Z",
       }),
-    submitOrder: async () => makeOrder(),
     getOrder: async () => makeOrder(),
     listOrders: async () => makeEmptyPage(),
     retryOrder: async () => makeOrder(),
