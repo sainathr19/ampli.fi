@@ -7,16 +7,16 @@ const DEFAULT_SETTINGS_FILE = "Settings.toml";
 
 const SettingsSchema = z
   .object({
-    port: z.number().int().positive().default(3000),
+    port: z.number().int().positive(),
     network: z.enum(["mainnet", "testnet"]),
     rpc_url: z.string().min(1, "rpc_url is required"),
-    vesu_api_url: z.string().default("https://api.vesu.xyz"),
-    paymaster_url: z.string().default("https://starknet.paymaster.avnu.fi"),
-    paymaster_api_key: z.string().default(""),
+    vesu_api_url: z.string().min(1, "vesu_api_url is required"),
+    paymaster_url: z.string().min(1, "paymaster_url is required"),
+    paymaster_api_key: z.string(),
     privy_app_id: z.string().min(1, "privy_app_id is required"),
     privy_app_secret: z.string().min(1, "privy_app_secret is required"),
     database_url: z.string().min(1, "database_url is required"),
-    bridge_recovery_interval_ms: z.number().int().positive().default(30000),
+    bridge_recovery_interval_ms: z.number().int().positive(),
   })
   .passthrough();
 
