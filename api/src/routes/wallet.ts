@@ -16,7 +16,7 @@ router.post("/starknet", async (req: Request, res: Response) => {
     const result = {
       id: wallet.id,
       address: wallet.address,
-      publicKey: wallet.public_key ?? wallet.publicKey,
+      publicKey: wallet.public_key,
     };
     return res.status(200).json({ wallet: result });
   } catch (error: unknown) {
