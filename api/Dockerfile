@@ -20,6 +20,7 @@ COPY package.json bun.lock* package-lock.json* ./
 RUN bun install --frozen-lockfile --production && rm -rf /root/.bun/install/cache
 
 COPY --from=build /app/dist ./dist
+COPY --from=build /app/src/db/migrations ./dist/db/migrations
 
 EXPOSE 3000
 

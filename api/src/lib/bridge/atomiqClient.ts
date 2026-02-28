@@ -3,6 +3,8 @@ import { StarknetInitializer } from "@atomiqlabs/chain-starknet";
 import { RpcProvider } from "starknet";
 import { BridgeAmountType, BridgeNetwork, BridgeOrder, BridgePrepareResult, BridgeSubmitInput } from "./types.js";
 import { settings } from "../settings.js";
+import { PostgresUnifiedStorage } from "./postgresStorage.js";
+import { InMemoryChainStorage } from "./inMemoryStorage.js";
 
 type AtomiqSwapLike = {
   getId?: () => string;
@@ -119,6 +121,8 @@ export class AtomiqSdkClient implements AtomiqClient {
       noTimers: true,
       dontCheckPastSwaps: true,
       saveUninitializedSwaps: true,
+      swapStorage: (name: string) => new PostgresUnifiedStorage(name),
+      chainStorageCtor: ((name: string) => new InMemoryChainStorage(name)) as never,
     });
 
     return this.swapperPromise;

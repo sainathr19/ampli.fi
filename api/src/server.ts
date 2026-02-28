@@ -7,6 +7,7 @@ import aggregatorRoutes from "./routes/aggregator.js";
 import bridgeRoutes from "./routes/bridge.js";
 import earnRoutes from "./routes/earn.js";
 import { settings } from "./lib/settings.js";
+import { runMigrations } from "./db/migrate.js";
 
 const app = express();
 const PORT = settings.port;
@@ -24,6 +25,14 @@ app.use("/api", aggregatorRoutes);
 app.use("/api/bridge", bridgeRoutes);
 app.use("/api/earn", earnRoutes);
 
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+async function start(): Promise<void> {
+  await runMigrations();
+  app.listen(PORT, () => {
+    console.log(`Server running on http://localhost:${PORT}`);
+  });
+}
+
+start().catch((err) => {
+  console.error("Failed to start server:", err);
+  process.exit(1);
 });

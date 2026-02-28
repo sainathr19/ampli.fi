@@ -43,3 +43,14 @@ CREATE INDEX IF NOT EXISTS idx_bridge_orders_wallet_created
 
 CREATE INDEX IF NOT EXISTS idx_bridge_orders_status_updated
   ON bridge_orders(status, updated_at DESC);
+
+-- Atomiq SDK swap state (persists across server restarts)
+CREATE TABLE IF NOT EXISTS atomiq_swaps (
+  storage_key TEXT NOT NULL,
+  id TEXT NOT NULL,
+  data JSONB NOT NULL,
+  PRIMARY KEY (storage_key, id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_atomiq_swaps_storage_key
+  ON atomiq_swaps(storage_key);
