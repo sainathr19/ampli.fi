@@ -1,0 +1,35 @@
+{
+  "name": "amplifi",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "lint": "eslint . --ext ts,tsx"
+  },
+  "dependencies": {
+    "@atomiqlabs/chain-starknet": "^5.1.4",
+    "@atomiqlabs/sdk": "^6.0.0",
+    "@scure/btc-signer": "^1.6.0",
+    "@starknet-io/get-starknet": "^4.0.3",
+    "clsx": "^2.1.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "sats-connect": "4.1.x",
+    "starknet": "^7.6.2",
+    "tailwind-merge": "^3.3.1",
+    "zustand": "^4.5.5"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.15",
+    "typescript": "~5.6.2",
+    "vite": "^6.0.1"
+  }
+}

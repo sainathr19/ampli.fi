@@ -1,0 +1,32 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+  Theme: edit the variables below to restyle the app.
+  Modal, navbar, and swap component all use these.
+*/
+:root {
+  --amplifi-bg: #fafafa;
+  --amplifi-surface: #ffffff;
+  --amplifi-border: #e5e7eb;
+  --amplifi-text: #111827;
+  --amplifi-text-muted: #6b7280;
+  --amplifi-primary: #171717;
+  --amplifi-primary-hover: #404040;
+  --amplifi-radius: 0.5rem;
+  --amplifi-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --amplifi-overlay: rgba(0, 0, 0, 0.45);
+}
+
+body {
+  background: var(--amplifi-bg);
+  color: var(--amplifi-text);
+}
+
+.btn-primary {
+  background-color: var(--amplifi-primary);
+}
+.btn-primary:hover:not(:disabled) {
+  background-color: var(--amplifi-primary-hover);
+}
