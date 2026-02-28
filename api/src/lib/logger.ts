@@ -17,6 +17,9 @@ function bindTrace(logger: pino.Logger): pino.Logger {
 }
 
 export const log = {
+  debug: (msg: string, obj?: Record<string, unknown>) => {
+    bindTrace(baseLogger).debug(obj ?? {}, msg);
+  },
   info: (msg: string, obj?: Record<string, unknown>) => {
     bindTrace(baseLogger).info(obj ?? {}, msg);
   },

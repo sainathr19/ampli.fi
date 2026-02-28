@@ -402,10 +402,22 @@ Response:
     "status": "CREATED",
     "depositAddress": "bc1...",
     "amountSats": "10000000",
+    "payment": {
+      "type": "ADDRESS",
+      "address": "bc1...",
+      "amountSats": "10000000",
+      "hyperlink": "bitcoin:bc1...?amount=0.1"
+    },
     "quote": {
       "amountIn": "10000000",
       "amountOut": "9990000",
-      "depositAddress": "bc1..."
+      "depositAddress": "bc1...",
+      "bitcoinPayment": {
+        "type": "ADDRESS",
+        "address": "bc1...",
+        "amountSats": "10000000",
+        "hyperlink": "bitcoin:bc1...?amount=0.1"
+      }
     },
     "expiresAt": "2026-03-01T00:00:00.000Z"
   }
@@ -414,6 +426,10 @@ Response:
 
 - `depositAddress`: BTC address to send to. Send exactly `amountSats` satoshis in a single transaction.
 - `amountSats`: Amount to send in satoshis.
+- `payment`: Normalized Bitcoin payment instructions from Atomiq.
+  - `type = "ADDRESS"`: send BTC directly to `address` (optional `hyperlink` can be used as QR payload).
+  - `type = "FUNDED_PSBT"`: sign `psbtHex` or `psbtBase64` with your Bitcoin wallet and sign only `signInputs`, then submit via Atomiq flow.
+  - `type = "RAW_PSBT"`: construct/sign from raw PSBT (uses `in1sequence` rules from Atomiq docs) and submit via Atomiq flow.
 - `quote.amountIn` and `quote.amountOut`: also returned in base units (same convention as `amount`).
 
 ### `GET /api/bridge/orders/:id`

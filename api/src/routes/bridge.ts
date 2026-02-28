@@ -70,6 +70,17 @@ export function createBridgeRouter(serviceResolver: () => Promise<BridgeServiceL
       const service = await serviceResolver();
       const order = await service.createOrder(payload);
       const quote = order.quote ?? {};
+      const quoteBitcoinPayment =
+        quote && typeof quote === "object" && !Array.isArray(quote)
+          ? ((quote as Record<string, unknown>).bitcoinPayment ?? null)
+          : null;
+      const paymentAmountSats =
+        quoteBitcoinPayment &&
+        typeof quoteBitcoinPayment === "object" &&
+        (quoteBitcoinPayment as Record<string, unknown>).type === "ADDRESS" &&
+        typeof (quoteBitcoinPayment as Record<string, unknown>).amountSats === "string"
+          ? ((quoteBitcoinPayment as Record<string, unknown>).amountSats as string)
+          : null;
       const quoteAmountIn = typeof quote.amountIn === "string" ? quote.amountIn : null;
       const quoteAmountInBaseUnits = quoteAmountIn && !quoteAmountIn.includes(".") ? quoteAmountIn : null;
       return res.status(201).json({
@@ -77,7 +88,8 @@ export function createBridgeRouter(serviceResolver: () => Promise<BridgeServiceL
           orderId: order.id,
           status: order.status,
           depositAddress: order.depositAddress ?? (quote.depositAddress ?? null),
-          amountSats: order.sourceAsset === "BTC" ? order.amount : quoteAmountInBaseUnits,
+          amountSats: order.sourceAsset === "BTC" ? (paymentAmountSats ?? order.amount) : quoteAmountInBaseUnits,
+          payment: quoteBitcoinPayment,
           quote: order.quote,
           expiresAt: order.expiresAt,
         },

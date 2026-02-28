@@ -90,6 +90,12 @@ test("POST /api/bridge/orders creates order with deposit address and amount", as
           amountIn: "10000",
           amountOut: "99700000",
           depositAddress: "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh",
+          bitcoinPayment: {
+            type: "ADDRESS",
+            address: "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh",
+            amountSats: "10000",
+            hyperlink: "bitcoin:bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh?amount=0.0001",
+          },
         },
         expiresAt: "2030-01-01T00:00:00.000Z",
       }),
@@ -113,5 +119,48 @@ test("POST /api/bridge/orders creates order with deposit address and amount", as
   assert.equal(res.body.data.status, "CREATED");
   assert.equal(res.body.data.depositAddress, "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh");
   assert.equal(res.body.data.amountSats, "10000");
+  assert.equal(res.body.data.payment.type, "ADDRESS");
+});
+
+test("POST /api/bridge/orders returns funded PSBT details when provided by Atomiq", async () => {
+  const app = createApp({
+    createOrder: async () =>
+      makeOrder({
+        status: "CREATED",
+        amount: "30038",
+        depositAddress: null,
+        quote: {
+          amountIn: "30038",
+          amountOut: "29577",
+          bitcoinPayment: {
+            type: "FUNDED_PSBT",
+            psbtHex: "70736274ff01",
+            psbtBase64: "cHNidP8BAA==",
+            signInputs: [1, 2],
+          },
+        },
+        expiresAt: "2030-01-01T00:00:00.000Z",
+      }),
+    getOrder: async () => makeOrder(),
+    listOrders: async () => makeEmptyPage(),
+    retryOrder: async () => makeOrder(),
+  });
+
+  const res = await request(app).post("/api/bridge/orders").send({
+    sourceAsset: "BTC",
+    destinationAsset: "WBTC",
+    amount: "30038",
+    amountType: "exactIn",
+    receiveAddress:
+      "0x0123456789012345678901234567890123456789012345678901234567890123",
+    walletAddress: "0xabc",
+  });
+
+  assert.equal(res.status, 201);
+  assert.equal(res.body.data.depositAddress, null);
+  assert.equal(res.body.data.amountSats, "30038");
+  assert.equal(res.body.data.payment.type, "FUNDED_PSBT");
+  assert.equal(res.body.data.payment.psbtBase64, "cHNidP8BAA==");
+  assert.deepEqual(res.body.data.payment.signInputs, [1, 2]);
 });
 
