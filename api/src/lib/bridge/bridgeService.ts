@@ -76,6 +76,7 @@ export class BridgeService {
       rawState: { state: String(swap.statusRaw ?? "") },
       amountSource: swap.amountSource,
       amountDestination: swap.amountDestination,
+      depositAddress: swap.depositAddress,
     });
 
     await this.repository.addAction(order.id, "CREATE_ORDER", "SUCCESS", {

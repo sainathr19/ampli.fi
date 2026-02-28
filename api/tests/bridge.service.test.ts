@@ -21,6 +21,7 @@ class InMemoryBridgeRepository implements BridgeRepository {
       amountType: args.input.amountType,
       amountSource: args.amountSource ?? null,
       amountDestination: args.amountDestination ?? null,
+      depositAddress: args.depositAddress ?? null,
       receiveAddress: args.input.receiveAddress,
       walletAddress: args.input.walletAddress,
       status: args.status,
@@ -61,6 +62,7 @@ class InMemoryBridgeRepository implements BridgeRepository {
       quote: Record<string, unknown> | null;
       atomiqSwapId: string | null;
       expiresAt: string | null;
+      depositAddress: string | null;
     }>
   ): Promise<BridgeOrder> {
     const current = this.orders.get(id);
@@ -77,6 +79,7 @@ class InMemoryBridgeRepository implements BridgeRepository {
       quote: patch.quote ?? current.quote,
       atomiqSwapId: patch.atomiqSwapId ?? current.atomiqSwapId,
       expiresAt: patch.expiresAt ?? current.expiresAt,
+      depositAddress: patch.depositAddress ?? current.depositAddress,
       updatedAt: new Date().toISOString(),
     };
     this.orders.set(id, updated);
@@ -120,6 +123,7 @@ test("BridgeService create and reconcile detects Atomiq state", async () => {
       expiresAt: "2030-01-01T00:00:00.000Z",
       amountSource: "10000",
       amountDestination: "9700000",
+      depositAddress: "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh",
     }),
     getOrderSnapshot: async () => ({
       statusRaw: "BTC_TX_CONFIRMED",

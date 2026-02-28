@@ -19,6 +19,7 @@ type BridgeOrderRow = {
   amount_type: string;
   amount_source: string | null;
   amount_destination: string | null;
+  deposit_address: string | null;
   receive_address: string;
   wallet_address: string;
   status: string;
@@ -42,6 +43,7 @@ export type CreateBridgeOrderArgs = {
   rawState?: Record<string, unknown> | null;
   amountSource?: string | null;
   amountDestination?: string | null;
+  depositAddress?: string | null;
 };
 
 export type BridgeRepository = {
@@ -60,6 +62,7 @@ export type BridgeRepository = {
       quote: Record<string, unknown> | null;
       atomiqSwapId: string | null;
       expiresAt: string | null;
+      depositAddress: string | null;
     }>
   ): Promise<BridgeOrder>;
   addAction(
@@ -88,6 +91,7 @@ function toOrder(row: BridgeOrderRow): BridgeOrder {
     amountType: row.amount_type as BridgeOrder["amountType"],
     amountSource: row.amount_source,
     amountDestination: row.amount_destination,
+    depositAddress: row.deposit_address,
     receiveAddress: row.receive_address,
     walletAddress: row.wallet_address,
     status: row.status as BridgeOrderStatus,
@@ -121,9 +125,9 @@ export class PgBridgeRepository implements BridgeRepository {
       `
       INSERT INTO bridge_orders (
         id, network, source_asset, destination_asset, amount, amount_type, amount_source, amount_destination,
-        receive_address, wallet_address, status, atomiq_swap_id, quote_json, expires_at, raw_state_json
+        deposit_address, receive_address, wallet_address, status, atomiq_swap_id, quote_json, expires_at, raw_state_json
       )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
       RETURNING *
       `,
       [
@@ -135,6 +139,7 @@ export class PgBridgeRepository implements BridgeRepository {
         args.input.amountType,
         args.amountSource ?? null,
         args.amountDestination ?? null,
+        args.depositAddress ?? null,
         args.input.receiveAddress,
         args.input.walletAddress,
         args.status,
@@ -191,6 +196,7 @@ export class PgBridgeRepository implements BridgeRepository {
       quote: Record<string, unknown> | null;
       atomiqSwapId: string | null;
       expiresAt: string | null;
+      depositAddress: string | null;
     }>
   ): Promise<BridgeOrder> {
     const current = await this.getOrderById(id);
@@ -207,6 +213,7 @@ export class PgBridgeRepository implements BridgeRepository {
       quote: patch.quote ?? current.quote,
       atomiqSwapId: patch.atomiqSwapId ?? current.atomiqSwapId,
       expiresAt: patch.expiresAt ?? current.expiresAt,
+      depositAddress: patch.depositAddress ?? current.depositAddress,
     };
 
     const result = await this.pool.query<BridgeOrderRow>(
@@ -221,6 +228,7 @@ export class PgBridgeRepository implements BridgeRepository {
         quote_json = $7,
         atomiq_swap_id = $8,
         expires_at = $9,
+        deposit_address = $10,
         updated_at = NOW()
       WHERE id = $1
       RETURNING *
@@ -235,6 +243,7 @@ export class PgBridgeRepository implements BridgeRepository {
         next.quote,
         next.atomiqSwapId,
         next.expiresAt,
+        next.depositAddress,
       ]
     );
 

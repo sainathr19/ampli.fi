@@ -15,6 +15,7 @@ function makeOrder(overrides: Partial<BridgeOrder> = {}): BridgeOrder {
     amountType: "exactIn",
     amountSource: "100000",
     amountDestination: "99700000",
+    depositAddress: "bc1qdefaultaddress000000000000000000000000000",
     receiveAddress: "0x0123",
     walletAddress: "0xwallet",
     status: "CREATED",
@@ -83,6 +84,8 @@ test("POST /api/bridge/orders creates order with deposit address and amount", as
     createOrder: async () =>
       makeOrder({
         status: "CREATED",
+        amount: "10000",
+        depositAddress: "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh",
         quote: {
           amountIn: "10000",
           amountOut: "99700000",

@@ -70,12 +70,14 @@ export function createBridgeRouter(serviceResolver: () => Promise<BridgeServiceL
       const service = await serviceResolver();
       const order = await service.createOrder(payload);
       const quote = order.quote ?? {};
+      const quoteAmountIn = typeof quote.amountIn === "string" ? quote.amountIn : null;
+      const quoteAmountInBaseUnits = quoteAmountIn && !quoteAmountIn.includes(".") ? quoteAmountIn : null;
       return res.status(201).json({
         data: {
           orderId: order.id,
           status: order.status,
-          depositAddress: quote.depositAddress ?? null,
-          amountSats: quote.amountIn ?? null,
+          depositAddress: order.depositAddress ?? (quote.depositAddress ?? null),
+          amountSats: order.sourceAsset === "BTC" ? order.amount : quoteAmountInBaseUnits,
           quote: order.quote,
           expiresAt: order.expiresAt,
         },

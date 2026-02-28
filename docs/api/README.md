@@ -414,6 +414,7 @@ Response:
 
 - `depositAddress`: BTC address to send to. Send exactly `amountSats` satoshis in a single transaction.
 - `amountSats`: Amount to send in satoshis.
+- `quote.amountIn` and `quote.amountOut`: also returned in base units (same convention as `amount`).
 
 ### `GET /api/bridge/orders/:id`
 

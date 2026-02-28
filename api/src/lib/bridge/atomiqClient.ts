@@ -10,6 +10,7 @@ import {
   baseUnitsToTokenAmount,
   getSourceDecimals,
   getDestinationDecimals,
+  tokenAmountToBaseUnits,
 } from "./tokenAmounts.js";
 
 type AtomiqSwapLike = {
@@ -43,6 +44,7 @@ type CreateIncomingSwapResult = {
   expiresAt: string | null;
   amountSource: string;
   amountDestination: string;
+  depositAddress: string | null;
 };
 
 type AtomiqOrderSnapshot = {
@@ -59,6 +61,38 @@ function getAmountLike(value: unknown): string | null {
   const obj = value as Record<string, unknown>;
   const amount = obj.amount ?? obj.rawAmount ?? obj.value;
   return amount == null ? null : String(amount);
+}
+
+function toBaseUnits(value: unknown, decimals: number): string | null {
+  if (value == null) return null;
+  if (typeof value === "bigint") return value.toString(10);
+  const raw = String(value).trim();
+  if (!raw) return null;
+  if (/^\d+$/.test(raw)) return raw;
+  if (/^\d+(\.\d+)?$/.test(raw)) {
+    return tokenAmountToBaseUnits(raw, decimals).toString(10);
+  }
+  return null;
+}
+
+function parseDepositFromTxsExecute(raw: unknown): { depositAddress: string | null; amountSats: string | null } {
+  const steps = Array.isArray(raw) ? raw : [];
+  for (const step of steps) {
+    if (!step || typeof step !== "object") continue;
+    const entry = step as Record<string, unknown>;
+    if (entry.name !== "Payment") continue;
+    const txs = Array.isArray(entry.txs) ? entry.txs : [];
+    for (const tx of txs) {
+      if (!tx || typeof tx !== "object") continue;
+      const item = tx as Record<string, unknown>;
+      if (item.type !== "ADDRESS") continue;
+      return {
+        depositAddress: typeof item.address === "string" ? item.address : null,
+        amountSats: toBaseUnits(item.amount, getSourceDecimals()),
+      };
+    }
+  }
+  return { depositAddress: null, amountSats: null };
 }
 
 export interface AtomiqClient {
@@ -156,15 +190,26 @@ export class AtomiqSdkClient implements AtomiqClient {
       throw new Error("Unable to create Atomiq swap id");
     }
 
-    const amountInBase = getAmountLike(swap.getInput?.());
-    const amountOutBase = getAmountLike(swap.getOutput?.());
-    const amountSource = amountInBase ?? input.amount;
-    const amountDestination = amountOutBase ?? input.amount;
+    let txsExecuteRaw: unknown = null;
+    if (swap.txsExecute) {
+      try {
+        txsExecuteRaw = await swap.txsExecute();
+      } catch (error: unknown) {
+        const msg = error instanceof Error ? error.message : String(error);
+        log.warn("atomiq txsExecute failed while creating swap", { error: msg });
+      }
+    }
+    const deposit = parseDepositFromTxsExecute(txsExecuteRaw);
+
+    const amountInRaw = getAmountLike(swap.getInput?.());
+    const amountOutRaw = getAmountLike(swap.getOutput?.());
+    const amountSource = toBaseUnits(amountInRaw, srcDecimals) ?? deposit.amountSats ?? input.amount;
+    const amountDestination = toBaseUnits(amountOutRaw, dstDecimals) ?? input.amount;
 
     const quote: Record<string, unknown> = {
       amountIn: amountSource,
       amountOut: amountDestination,
-      depositAddress: swap.getAddress?.() ?? null,
+      depositAddress: deposit.depositAddress,
     };
 
     const timeout = swap.getTimeoutTime?.();
@@ -172,7 +217,7 @@ export class AtomiqSdkClient implements AtomiqClient {
       atomiqSwapId,
       amountSource,
       amountDestination,
-      depositAddress: swap.getAddress?.(),
+      depositAddress: deposit.depositAddress,
     });
     return {
       atomiqSwapId,
@@ -181,6 +226,7 @@ export class AtomiqSdkClient implements AtomiqClient {
       expiresAt: typeof timeout === "number" ? new Date(timeout).toISOString() : null,
       amountSource,
       amountDestination,
+      depositAddress: deposit.depositAddress,
     };
   }
 

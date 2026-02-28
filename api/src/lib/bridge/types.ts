@@ -44,6 +44,7 @@ export type BridgeOrder = {
   amountType: BridgeAmountType;
   amountSource: string | null;
   amountDestination: string | null;
+  depositAddress: string | null;
   receiveAddress: string;
   walletAddress: string;
   status: BridgeOrderStatus;
