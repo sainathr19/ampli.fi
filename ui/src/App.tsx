@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import WalletConnectionModal from "@/components/ui/WalletConnectionModal";
+import { PrivyStarknetSync } from "@/components/PrivyStarknetSync";
 import { useWallet } from "@/store/useWallet";
 import { AtomiqSwap } from "@/components/swap/AtomiqSwap";
 
@@ -27,6 +28,7 @@ export default function App() {
 
   return (
     <>
+      <PrivyStarknetSync />
       <nav
         className="border-b px-4 py-3"
         style={{

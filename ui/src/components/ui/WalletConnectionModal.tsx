@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useWallet } from "@/store/useWallet";
+import { usePrivyStarknet } from "@/hooks/usePrivyStarknet";
 
 interface WalletConnectionModalProps {
   isOpen: boolean;
@@ -15,6 +16,7 @@ export default function WalletConnectionModal({
   const {
     bitcoinPaymentAddress,
     starknetAddress,
+    starknetSource,
     connected,
     isXverseAvailable,
     isUniSatAvailable,
@@ -22,8 +24,17 @@ export default function WalletConnectionModal({
     connectStarknet,
     disconnectBitcoin,
     disconnectStarknet,
+    disconnectPrivyStarknet,
     isConnecting,
   } = useWallet();
+
+  const {
+    login: privyLogin,
+    logout: privyLogout,
+    isReady: privyReady,
+    isLoading: privyLoading,
+    error: privyError,
+  } = usePrivyStarknet();
 
   const [connectingXverse, setConnectingXverse] = useState(false);
   const [connectingUnisat, setConnectingUnisat] = useState(false);
@@ -58,11 +69,24 @@ export default function WalletConnectionModal({
     }
   };
 
+  const onPrivyConnect = () => {
+    privyLogin();
+  };
+
+  const onStarknetDisconnect = async () => {
+    if (starknetSource === "privy") {
+      disconnectPrivyStarknet();
+      await privyLogout();
+    } else {
+      await disconnectStarknet();
+    }
+  };
+
   const onDisconnectAll = async () => {
     setDisconnectingAll(true);
     try {
       if (bitcoinPaymentAddress) disconnectBitcoin();
-      if (starknetAddress) await disconnectStarknet();
+      if (starknetAddress) await onStarknetDisconnect();
     } catch (e) {
       console.error(e);
     } finally {
@@ -171,28 +195,44 @@ export default function WalletConnectionModal({
             <div className="mb-2 text-sm font-medium" style={{ color: "var(--amplifi-text)" }}>Starknet</div>
             {starknetAddress ? (
               <div>
-                <div className="mb-1 text-xs" style={{ color: "var(--amplifi-text-muted)" }}>Connected</div>
+                <div className="mb-1 text-xs" style={{ color: "var(--amplifi-text-muted)" }}>
+                  Connected {starknetSource === "privy" ? "(Privy)" : ""}
+                </div>
                 <div className="break-all rounded bg-gray-100 p-2 text-xs font-mono" style={{ color: "var(--amplifi-text)" }}>
                   {starknetAddress}
                 </div>
                 <button
                   type="button"
-                  onClick={() => disconnectStarknet()}
+                  onClick={() => onStarknetDisconnect()}
                   className="mt-2 text-xs text-red-600 hover:underline"
                 >
                   Disconnect
                 </button>
               </div>
             ) : (
-              <button
-                type="button"
-                onClick={onStarknetConnect}
-                disabled={connectingStarknet || isConnecting}
-                className="block w-full rounded-lg border px-3 py-2 text-sm transition-colors disabled:opacity-50"
-                style={{ borderColor: "var(--amplifi-border)", backgroundColor: "var(--amplifi-surface)" }}
-              >
-                {connectingStarknet ? "Connecting…" : "Connect Starknet"}
-              </button>
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={onPrivyConnect}
+                  disabled={privyLoading || isConnecting}
+                  className="block w-full rounded-lg border px-3 py-2 text-sm transition-colors disabled:opacity-50"
+                  style={{ borderColor: "var(--amplifi-border)", backgroundColor: "var(--amplifi-surface)" }}
+                >
+                  {privyLoading ? "Connecting…" : "Connect with Email/Social (Privy)"}
+                </button>
+                <button
+                  type="button"
+                  onClick={onStarknetConnect}
+                  disabled={connectingStarknet || isConnecting}
+                  className="block w-full rounded-lg border px-3 py-2 text-sm transition-colors disabled:opacity-50"
+                  style={{ borderColor: "var(--amplifi-border)", backgroundColor: "var(--amplifi-surface)" }}
+                >
+                  {connectingStarknet ? "Connecting…" : "Connect Starknet Extension"}
+                </button>
+                {privyError && (
+                  <p className="text-xs text-red-600">{privyError}</p>
+                )}
+              </div>
             )}
           </div>
         </div>

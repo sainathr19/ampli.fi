@@ -33,6 +33,8 @@ type BitcoinWalletInstance =
   | UnisatBitcoinWallet
   | null;
 
+export type StarknetSource = "extension" | "privy" | null;
+
 type WalletState = {
   isXverseAvailable: boolean;
   isUniSatAvailable: boolean;
@@ -42,6 +44,7 @@ type WalletState = {
   starknetAddress: string | null;
   bitcoinWalletType: "xverse" | "unisat" | null;
   starknetWalletName: string | null;
+  starknetSource: StarknetSource;
   /** Live instances for swap (not persisted). */
   bitcoinWalletInstance: BitcoinWalletInstance;
   starknetSigner: StarknetSigner | null;
@@ -49,8 +52,10 @@ type WalletState = {
   detectProviders: () => void;
   connectBitcoin: (walletType: "xverse" | "unisat") => Promise<void>;
   connectStarknet: () => Promise<void>;
+  connectPrivyStarknet: (address: string, signer: StarknetSigner) => void;
   disconnectBitcoin: () => void;
   disconnectStarknet: () => Promise<void>;
+  disconnectPrivyStarknet: () => void;
 };
 
 export const useWallet = create<WalletState>()(
@@ -64,6 +69,7 @@ export const useWallet = create<WalletState>()(
       starknetAddress: null,
       bitcoinWalletType: null,
       starknetWalletName: null,
+      starknetSource: null,
       bitcoinWalletInstance: null,
       starknetSigner: null,
 
@@ -146,6 +152,7 @@ export const useWallet = create<WalletState>()(
           set({
             starknetAddress: addr,
             starknetWalletName: swo.name,
+            starknetSource: "extension",
             starknetSigner: signer,
             connected: true,
             isConnecting: false,
@@ -155,6 +162,16 @@ export const useWallet = create<WalletState>()(
           set({ isConnecting: false });
           throw error;
         }
+      },
+
+      connectPrivyStarknet: (address, signer) => {
+        set({
+          starknetAddress: address,
+          starknetWalletName: "Privy",
+          starknetSource: "privy",
+          starknetSigner: signer,
+          connected: true,
+        });
       },
 
       disconnectBitcoin: () => {
@@ -167,6 +184,7 @@ export const useWallet = create<WalletState>()(
       },
 
       disconnectStarknet: async () => {
+        if (get().starknetSource === "privy") return;
         try {
           await disconnect({ clearLastWallet: true });
         } catch {
@@ -175,6 +193,18 @@ export const useWallet = create<WalletState>()(
         set({
           starknetAddress: null,
           starknetWalletName: null,
+          starknetSource: null,
+          starknetSigner: null,
+          connected: Boolean(get().bitcoinPaymentAddress),
+        });
+      },
+
+      disconnectPrivyStarknet: () => {
+        if (get().starknetSource !== "privy") return;
+        set({
+          starknetAddress: null,
+          starknetWalletName: null,
+          starknetSource: null,
           starknetSigner: null,
           connected: Boolean(get().bitcoinPaymentAddress),
         });
