@@ -27,6 +27,20 @@ export function validatePositiveIntegerString(value: unknown, field: string): st
   return normalized;
 }
 
+export function validateTokenAmount(value: unknown, field: string): string {
+  const normalized = asString(value).trim();
+  if (!normalized) {
+    throw new Error(`${field} is required`);
+  }
+  if (!/^\d+(\.\d+)?$/.test(normalized)) {
+    throw new Error(`${field} must be a valid token amount (e.g. "0.001" or "100")`);
+  }
+  if (/^0(\.0*)?$/.test(normalized)) {
+    throw new Error(`${field} must be greater than zero`);
+  }
+  return normalized;
+}
+
 export function validateDestinationAsset(value: unknown): string {
   const normalized = asString(value).trim().toUpperCase();
   if (!SUPPORTED_DESTINATION_ASSETS.has(normalized)) {

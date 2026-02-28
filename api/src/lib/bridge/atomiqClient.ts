@@ -5,36 +5,11 @@ import { BridgeAmountType, BridgeNetwork, BridgeOrder, BridgePrepareResult, Brid
 import { settings } from "../settings.js";
 import { PostgresUnifiedStorage } from "./postgresStorage.js";
 import { InMemoryChainStorage } from "./inMemoryStorage.js";
-
-const DESTINATION_DECIMALS: Record<string, number> = {
-  WBTC: 8,
-  TBTC: 18,
-  ETH: 18,
-  STRK: 18,
-  USDC: 6,
-  USDT: 6,
-  _TESTNET_WBTC_VESU: 8,
-};
-
-/**
- * Convert satoshis to destination token base units.
- * API always accepts amount in satoshis for both exactIn and exactOut.
- * - 8-decimal tokens (WBTC, TBTC): 1:1 (1 sat ≈ 1 unit)
- * - 6-decimal (USDC, USDT): 1 sat ≈ $0.001 → 1000 units (at ~$100k/BTC)
- * - 18-decimal (ETH, STRK): 1 sat ≈ $0.001 → 10^15 wei (at ~$100k/BTC, ~$2k/ETH)
- */
-function satoshisToDestinationUnits(satoshis: bigint, decimals: number): bigint {
-  if (decimals >= 8) {
-    return satoshis * 10n ** BigInt(decimals - 8);
-  }
-  if (decimals === 6) {
-    return satoshis * 1000n;
-  }
-  if (decimals === 18) {
-    return satoshis * 10n ** 15n;
-  }
-  return satoshis;
-}
+import {
+  baseUnitsToTokenAmount,
+  getSourceDecimals,
+  getDestinationDecimals,
+} from "./tokenAmounts.js";
 
 type AtomiqSwapLike = {
   getId?: () => string;
@@ -66,8 +41,8 @@ type CreateIncomingSwapResult = {
   statusRaw: unknown;
   quote: Record<string, unknown>;
   expiresAt: string | null;
-  amountSourceSats: string;
-  amountDestinationUnits: string;
+  amountSource: string;
+  amountDestination: string;
 };
 
 type AtomiqOrderSnapshot = {
@@ -137,14 +112,15 @@ export class AtomiqSdkClient implements AtomiqClient {
       return this.swapperPromise;
     }
 
-    const provider = new RpcProvider({ nodeUrl: settings.rpc_url });
+    const bridgeRpcUrl = settings.bridge_rpc_url ?? settings.rpc_url;
+    const provider = new RpcProvider({ nodeUrl: bridgeRpcUrl });
     const chainId = await provider.getChainId();
     const networkValue = settings.network === "mainnet" ? BitcoinNetwork.MAINNET : BitcoinNetwork.TESTNET;
 
     this.swapperPromise = this.factory.newSwapperInitialized({
       chains: {
         STARKNET: {
-          rpcUrl: settings.rpc_url,
+          rpcUrl: bridgeRpcUrl,
           chainId: chainId as never,
         },
       },
@@ -185,14 +161,14 @@ export class AtomiqSdkClient implements AtomiqClient {
     if (!token) {
       throw new Error(`Unsupported destination asset: ${input.destinationAsset}`);
     }
-    // API always accepts amount in satoshis for both exactIn and exactOut.
-    const amountSatoshis = BigInt(input.amount);
-    const decimals =
-      DESTINATION_DECIMALS[ticker] ?? DESTINATION_DECIMALS[input.destinationAsset] ?? 8;
+    // Input and DB use base units (e.g. "10000000"). Only Atomiq SDK expects decimal string like "0.1".
+    const srcDecimals = getSourceDecimals();
+    const dstDecimals = getDestinationDecimals(ticker);
+    const amountBaseUnits = BigInt(input.amount);
     const amountForSdk =
       amountType === SwapAmountType.EXACT_IN
-        ? amountSatoshis
-        : satoshisToDestinationUnits(amountSatoshis, decimals);
+        ? baseUnitsToTokenAmount(amountBaseUnits, srcDecimals)
+        : baseUnitsToTokenAmount(amountBaseUnits, dstDecimals);
 
     const exactIn = amountType === SwapAmountType.EXACT_IN;
     const swap = (await swapper.swap(
@@ -209,11 +185,14 @@ export class AtomiqSdkClient implements AtomiqClient {
       throw new Error("Unable to create Atomiq swap id");
     }
 
-    const amountIn = getAmountLike(swap.getInput?.());
-    const amountOut = getAmountLike(swap.getOutput?.());
+    const amountInBase = getAmountLike(swap.getInput?.());
+    const amountOutBase = getAmountLike(swap.getOutput?.());
+    const amountSource = amountInBase ?? input.amount;
+    const amountDestination = amountOutBase ?? input.amount;
+
     const quote: Record<string, unknown> = {
-      amountIn,
-      amountOut,
+      amountIn: amountSource,
+      amountOut: amountDestination,
       depositAddress: swap.getAddress?.() ?? null,
     };
 
@@ -223,8 +202,8 @@ export class AtomiqSdkClient implements AtomiqClient {
       statusRaw: swap.getState?.(),
       quote,
       expiresAt: typeof timeout === "number" ? new Date(timeout).toISOString() : null,
-      amountSourceSats: amountIn ?? input.amount,
-      amountDestinationUnits: amountOut ?? String(amountForSdk),
+      amountSource,
+      amountDestination,
     };
   }
 

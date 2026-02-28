@@ -10,6 +10,7 @@ const SettingsSchema = z
     port: z.number().int().positive(),
     network: z.enum(["mainnet", "testnet"]),
     rpc_url: z.string().min(1, "rpc_url is required"),
+    bridge_rpc_url: z.string().min(1).optional(),
     vesu_api_url: z.string().min(1, "vesu_api_url is required"),
     paymaster_url: z.string().min(1, "paymaster_url is required"),
     paymaster_api_key: z.string(),

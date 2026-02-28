@@ -57,8 +57,8 @@ export type BridgeOrder = {
   destinationAsset: string;
   amount: string;
   amountType: BridgeAmountType;
-  amountSourceSats: string | null;
-  amountDestinationUnits: string | null;
+  amountSource: string | null;
+  amountDestination: string | null;
   receiveAddress: string;
   walletAddress: string;
   status: BridgeOrderStatus;

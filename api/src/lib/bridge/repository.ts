@@ -17,8 +17,8 @@ type BridgeOrderRow = {
   destination_asset: string;
   amount: string;
   amount_type: string;
-  amount_source_sats: string | null;
-  amount_destination_units: string | null;
+  amount_source: string | null;
+  amount_destination: string | null;
   receive_address: string;
   wallet_address: string;
   status: string;
@@ -40,8 +40,8 @@ export type CreateBridgeOrderArgs = {
   quote?: Record<string, unknown> | null;
   expiresAt?: string | null;
   rawState?: Record<string, unknown> | null;
-  amountSourceSats?: string | null;
-  amountDestinationUnits?: string | null;
+  amountSource?: string | null;
+  amountDestination?: string | null;
 };
 
 export type BridgeRepository = {
@@ -86,8 +86,8 @@ function toOrder(row: BridgeOrderRow): BridgeOrder {
     destinationAsset: row.destination_asset,
     amount: row.amount,
     amountType: row.amount_type as BridgeOrder["amountType"],
-    amountSourceSats: row.amount_source_sats,
-    amountDestinationUnits: row.amount_destination_units,
+    amountSource: row.amount_source,
+    amountDestination: row.amount_destination,
     receiveAddress: row.receive_address,
     walletAddress: row.wallet_address,
     status: row.status as BridgeOrderStatus,
@@ -120,7 +120,7 @@ export class PgBridgeRepository implements BridgeRepository {
     const result = await this.pool.query<BridgeOrderRow>(
       `
       INSERT INTO bridge_orders (
-        id, network, source_asset, destination_asset, amount, amount_type, amount_source_sats, amount_destination_units,
+        id, network, source_asset, destination_asset, amount, amount_type, amount_source, amount_destination,
         receive_address, wallet_address, status, atomiq_swap_id, quote_json, expires_at, raw_state_json
       )
       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
@@ -133,8 +133,8 @@ export class PgBridgeRepository implements BridgeRepository {
         args.input.destinationAsset,
         args.input.amount,
         args.input.amountType,
-        args.amountSourceSats ?? null,
-        args.amountDestinationUnits ?? null,
+        args.amountSource ?? null,
+        args.amountDestination ?? null,
         args.input.receiveAddress,
         args.input.walletAddress,
         args.status,

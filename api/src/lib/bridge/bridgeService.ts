@@ -63,8 +63,8 @@ export class BridgeService {
       quote: swap.quote,
       expiresAt: swap.expiresAt,
       rawState: { state: String(swap.statusRaw ?? "") },
-      amountSourceSats: swap.amountSourceSats,
-      amountDestinationUnits: swap.amountDestinationUnits,
+      amountSource: swap.amountSource,
+      amountDestination: swap.amountDestination,
     });
 
     await this.repository.addAction(order.id, "CREATE_ORDER", "SUCCESS", {

@@ -13,8 +13,8 @@ function makeOrder(overrides: Partial<BridgeOrder> = {}): BridgeOrder {
     destinationAsset: "USDC",
     amount: "100000",
     amountType: "exactIn",
-    amountSourceSats: "100000",
-    amountDestinationUnits: "9970000",
+    amountSource: "100000",
+    amountDestination: "99700000",
     receiveAddress: "0x0123",
     walletAddress: "0xwallet",
     status: "CREATED",
@@ -87,7 +87,7 @@ test("POST /api/bridge/orders creates order with quote summary", async () => {
     createOrder: async () =>
       makeOrder({
         status: "CREATED",
-        quote: { amountIn: "10000", amountOut: "9970000" },
+        quote: { amountIn: "10000", amountOut: "99700000" },
         expiresAt: "2030-01-01T00:00:00.000Z",
       }),
     prepareOrder: async () => ({ order: makeOrder(), payload: {} }),

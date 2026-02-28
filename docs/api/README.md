@@ -371,7 +371,7 @@ Request body:
 {
   "sourceAsset": "BTC",
   "destinationAsset": "USDC",
-  "amount": "100000",
+  "amount": "10000000",
   "amountType": "exactIn",
   "receiveAddress": "0x0123...starknet",
   "walletAddress": "0xabc..."
@@ -382,7 +382,7 @@ Validation:
 
 - `sourceAsset`: must be `BTC`
 - `destinationAsset`: one of `USDC | ETH | STRK | WBTC | USDT | TBTC`
-- `amount`: positive integer string in **satoshis** for both `exactIn` and `exactOut` (1 BTC = 100,000,000). The DB stores normalized token amounts (`amount_source_sats`, `amount_destination_units`).
+- `amount`: base units as string (e.g. `"10000000"` for 0.1 BTC, 1 BTC = 100_000_000). For `exactIn`: source token base units. For `exactOut`: destination token base units. DB stores base units; only Atomiq SDK receives decimal conversion.
 - `amountType`: `exactIn | exactOut`
 - `receiveAddress`: validated with `starknet.js` (`validateAndParseAddress`)
 
@@ -401,7 +401,7 @@ Response:
     "orderId": "uuid",
     "status": "CREATED",
     "quote": {
-      "amountIn": "100000",
+      "amountIn": "10000000",
       "amountOut": "9990000",
       "depositAddress": "bc1..."
     },
