@@ -95,29 +95,20 @@ export interface AtomiqClient {
 
 export class AtomiqSdkClient implements AtomiqClient {
   private readonly factory = new SwapperFactory([StarknetInitializer]);
-  private readonly swappers = new Map<BridgeNetwork, Promise<any>>();
+  private swapperPromise: Promise<any> | null = null;
 
-  private async getSwapper(network: BridgeNetwork): Promise<any> {
-    const existing = this.swappers.get(network);
-    if (existing) {
-      return existing;
+  private async getSwapper(_network: BridgeNetwork): Promise<any> {
+    if (this.swapperPromise) {
+      return this.swapperPromise;
     }
 
-    const rpcUrl =
-      network === "mainnet"
-        ? settings.atomiq_starknet_rpc_mainnet
-        : settings.atomiq_starknet_rpc_testnet;
+    const chainId = settings.network === "mainnet" ? "SN_MAIN" : "SN_SEPOLIA";
+    const networkValue = settings.network === "mainnet" ? BitcoinNetwork.MAINNET : BitcoinNetwork.TESTNET;
 
-    const chainId =
-      network === "mainnet"
-        ? settings.atomiq_starknet_chain_id_mainnet
-        : settings.atomiq_starknet_chain_id_testnet;
-    const networkValue = network === "mainnet" ? BitcoinNetwork.MAINNET : BitcoinNetwork.TESTNET;
-
-    const swapperPromise = this.factory.newSwapperInitialized({
+    this.swapperPromise = this.factory.newSwapperInitialized({
       chains: {
         STARKNET: {
-          rpcUrl,
+          rpcUrl: settings.rpc_url,
           chainId: chainId as never,
         },
       },
@@ -128,8 +119,7 @@ export class AtomiqSdkClient implements AtomiqClient {
       saveUninitializedSwaps: true,
     });
 
-    this.swappers.set(network, swapperPromise);
-    return swapperPromise;
+    return this.swapperPromise;
   }
 
   private async getSwap(order: BridgeOrder): Promise<AtomiqSwapLike> {

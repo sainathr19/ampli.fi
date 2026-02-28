@@ -1,20 +1,11 @@
 import { validateAndParseAddress } from "starknet";
 import { asString } from "../aggregatorUtils.js";
-import { BridgeAmountType, BridgeCreateOrderInput, BridgeNetwork } from "./types.js";
-
-const SUPPORTED_NETWORKS: BridgeNetwork[] = ["mainnet", "testnet"];
+import { settings } from "../settings.js";
+import { BridgeAmountType, BridgeCreateOrderInput } from "./types.js";
 const SUPPORTED_DESTINATION_ASSETS = new Set(["USDC", "ETH", "STRK", "WBTC", "USDT", "TBTC"]);
 
 export function normalizeWalletAddress(value: string): string {
   return value.trim().toLowerCase();
-}
-
-export function validateNetwork(value: unknown): BridgeNetwork {
-  const normalized = asString(value).trim().toLowerCase();
-  if (!SUPPORTED_NETWORKS.includes(normalized as BridgeNetwork)) {
-    throw new Error("network must be one of: mainnet, testnet");
-  }
-  return normalized as BridgeNetwork;
 }
 
 export function validateAmountType(value: unknown): BridgeAmountType {
@@ -71,7 +62,7 @@ export function validateCreateOrderPayload(payload: unknown): BridgeCreateOrderI
   }
 
   return {
-    network: validateNetwork(body.network),
+    network: settings.network,
     sourceAsset: "BTC",
     destinationAsset: validateDestinationAsset(body.destinationAsset),
     amount: validatePositiveIntegerString(body.amount, "amount"),

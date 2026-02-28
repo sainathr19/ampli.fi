@@ -68,7 +68,6 @@ test("POST /api/bridge/orders validates Starknet receive address", async () => {
   });
 
   const res = await request(app).post("/api/bridge/orders").send({
-    network: "testnet",
     sourceAsset: "BTC",
     destinationAsset: "USDC",
     amount: "10000",
@@ -97,7 +96,6 @@ test("POST /api/bridge/orders creates order with quote summary", async () => {
   });
 
   const res = await request(app).post("/api/bridge/orders").send({
-    network: "testnet",
     sourceAsset: "BTC",
     destinationAsset: "USDC",
     amount: "10000",

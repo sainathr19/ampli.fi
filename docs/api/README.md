@@ -248,7 +248,6 @@ Request body:
 
 ```json
 {
-  "network": "mainnet",
   "sourceAsset": "BTC",
   "destinationAsset": "USDC",
   "amount": "100000",
@@ -260,12 +259,18 @@ Request body:
 
 Validation:
 
-- `network`: `mainnet | testnet`
 - `sourceAsset`: must be `BTC`
 - `destinationAsset`: one of `USDC | ETH | STRK | WBTC | USDT | TBTC`
 - `amount`: positive integer string
 - `amountType`: `exactIn | exactOut`
 - `receiveAddress`: validated with `starknet.js` (`validateAndParseAddress`)
+
+Notes:
+
+- `network` is not accepted from request body.
+- Active bridge network is server-configured in `api/Settings.toml` via:
+  - `network = "mainnet" | "testnet"`
+  - `rpc_url = "<starknet-rpc-url>"`
 
 Response:
 
