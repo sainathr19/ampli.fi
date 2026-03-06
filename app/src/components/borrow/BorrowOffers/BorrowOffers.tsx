@@ -85,7 +85,7 @@ export function BorrowOffers({
     const { item, isBest } = selectedOffer ?? { item: null!, isBest: false };
     if (!item) {
       return (
-        <section className="rounded-amplifi-lg bg-white p-5 md:h-fit md:min-h-0">
+        <section className="rounded-amplifi-lg bg-white p-4 sm:p-5 md:p-6 md:h-fit md:min-h-0">
           {loanFlow && (
             <LoanStatusPanel
               orderId={loanFlow.orderId}
@@ -115,7 +115,7 @@ export function BorrowOffers({
         : null;
 
     return (
-      <section className="rounded-amplifi-lg bg-white p-5 md:h-fit md:min-h-0">
+      <section className="rounded-amplifi-lg bg-white p-4 sm:p-5 md:p-6 md:h-fit md:min-h-0">
         {loanFlow && (
           <LoanStatusPanel
             orderId={loanFlow.orderId}
@@ -262,7 +262,7 @@ export function BorrowOffers({
   }
 
   return (
-    <section className="rounded-amplifi-lg bg-white p-5 md:h-fit md:min-h-0">
+    <section className="rounded-amplifi-lg bg-white p-4 sm:p-5 md:p-6 md:h-fit md:min-h-0">
       <p className="mb-0.5 flex items-center gap-2 text-base text-amplifi-text">
         <img src={LOGOS.borrow} alt="borrow" className="h-5 w-5" />
         Borrow offers

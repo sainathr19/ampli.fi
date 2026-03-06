@@ -92,13 +92,19 @@ export function EarnPage() {
     Number(amount) > 0;
 
   return (
-    <div className="mx-auto w-full max-w-[1400px] min-w-0 py-8">
-      <div className="mb-10 flex flex-col gap-4 sm:flex-row sm:gap-20">
+    <div className="relative mx-auto w-full max-w-[1400px] min-w-0 py-6 px-4 sm:py-8 sm:px-0">
+      {/* Left-side background pattern */}
+      <div
+        className="pointer-events-none absolute left-0 top-0 bottom-0 w-full max-w-[50%] min-h-[600px] bg-no-repeat bg-left bg-[length:auto_100%] opacity-[0.06] lg:opacity-[0.08]"
+        style={{ backgroundImage: "url('/mask.svg')" }}
+        aria-hidden
+      />
+      <div className="relative mb-8 flex flex-col gap-4 sm:mb-10 sm:flex-row sm:gap-20">
         <p className="text-2xl font-semibold tracking-tight md:text-3xl">
           Earn
         </p>
         <div className="max-w-[899px]">
-          <p className="mt-2 text-base leading-relaxed text-amplifi-text">
+          <p className="mt-0 sm:mt-2 text-sm sm:text-base leading-relaxed text-amplifi-text">
             Stake directly on Starknet using supported validators and pools. Earn yield on your assets.
           </p>
           {showBtcStakingUnavailable && (
@@ -128,7 +134,7 @@ export function EarnPage() {
       </div>
 
       {(error || stakeError || toastMessage) && (
-        <div className="mb-6 rounded-amplifi border border-amplifi-risk-hard/30 bg-amplifi-risk-hard-bg/30 px-4 py-3">
+        <div className="relative mb-4 sm:mb-6 rounded-amplifi border border-amplifi-risk-hard/30 bg-amplifi-risk-hard-bg/30 px-3 py-2.5 sm:px-4 sm:py-3">
           {error && <p className="text-sm text-amplifi-risk-hard">{error}</p>}
           {stakeError && <p className="text-sm text-amplifi-risk-hard">{stakeError}</p>}
           {toastMessage && (
@@ -139,16 +145,16 @@ export function EarnPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[472px_1fr]">
+      <div className="relative grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-[472px_1fr]">
         {/* Left column: form */}
-        <div className="w-full min-w-0 space-y-6">
-          <div className="rounded-amplifi bg-white p-6">
-            <div className="mb-5 flex items-center gap-2">
+        <div className="w-full min-w-0 space-y-4 sm:space-y-6">
+          <div className="rounded-amplifi bg-white p-4 sm:p-6">
+            <div className="mb-4 sm:mb-5 flex items-center gap-2">
               <img src={LOGOS.import} alt="" className="h-4 w-4 text-amplifi-text" />
               <span className="text-base font-medium text-amplifi-text">Pool Selection</span>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-amplifi-muted">Validator</label>
                 <ScrollableSelect
@@ -183,13 +189,13 @@ export function EarnPage() {
             </div>
           </div>
 
-          <div className="rounded-amplifi bg-white p-6">
-            <div className="mb-5 flex items-center gap-2">
+          <div className="rounded-amplifi bg-white p-4 sm:p-6">
+            <div className="mb-4 sm:mb-5 flex items-center gap-2">
               <img src={LOGOS.export} alt="" className="h-4 w-4 text-amplifi-text" />
               <span className="text-base font-medium text-amplifi-text">Stake</span>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               <div>
                 <p className="text-xs font-medium text-amplifi-muted">{selectedTokenSymbol} Balance</p>
                 <p className="text-2xl font-semibold text-amplifi-amount">
@@ -264,8 +270,8 @@ function EarnPoolsPanel({
   loading: boolean;
 }) {
   return (
-    <section className="rounded-amplifi-lg bg-white p-5 md:h-fit md:min-h-0">
-      <p className="mb-4 flex items-center gap-2 text-base font-medium text-amplifi-text">
+    <section className="rounded-amplifi-lg bg-white p-4 sm:p-5 md:p-6 md:h-fit md:min-h-0">
+      <p className="mb-3 sm:mb-4 flex items-center gap-2 text-base font-medium text-amplifi-text">
         <img src={LOGOS.borrow} alt="earn" className="h-5 w-5" />
         Staking Pools
       </p>
@@ -280,7 +286,7 @@ function EarnPoolsPanel({
             return (
               <li
                 key={pool.poolContract}
-                className={`flex flex-col gap-3 border-b border-amplifi-border py-4 last:border-b-0 ${isSelected ? "rounded-amplifi bg-amplifi-best-offer/50" : ""}`}
+                className={`flex flex-col gap-2 sm:gap-3 border-b border-amplifi-border py-3 sm:py-4 last:border-b-0 ${isSelected ? "rounded-amplifi bg-amplifi-best-offer/50" : ""}`}
               >
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2">

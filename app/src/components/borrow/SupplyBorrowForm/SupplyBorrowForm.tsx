@@ -149,8 +149,8 @@ export function SupplyBorrowForm({
 
   return (
     <div className="relative space-y-1.5">
-      <div className="rounded-amplifi bg-white p-6">
-        <div className="mb-5 flex items-center justify-between">
+      <div className="rounded-amplifi bg-white p-4 sm:p-6">
+        <div className="mb-4 sm:mb-5 flex items-center justify-between">
           <div className="flex items-center gap-2 w-full">
 
             <img src={LOGOS.import} alt="input" className="h-4 w-4 text-amplifi-text" />
@@ -287,7 +287,7 @@ export function SupplyBorrowForm({
         )}
       </div>
 
-      <div className="rounded-amplifi bg-white p-5">
+      <div className="rounded-amplifi bg-white p-4 sm:p-5">
         <div className="mb-3 flex items-center gap-2">
           <img src={LOGOS.export} alt="output" className="h-5 w-5 text-amplifi-text" />
           <span className="text-base text-amplifi-text">Borrow</span>
