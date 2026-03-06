@@ -4,7 +4,7 @@ import {
   type LoanOfferItem,
   type BridgeOrderPayment,
 } from "@/lib/amplifi-api";
-import { getAssetIconUrl, LOGOS } from "@/lib/constants";
+import { getAssetIconUrl, getProtocolIconUrl, LOGOS } from "@/lib/constants";
 import { LoanStatusPanel } from "../LoanStatusPanel";
 
 const COLLATERAL = "WBTC";
@@ -101,8 +101,9 @@ export function BorrowOffers({
       );
     }
     const d = item.data;
-    const poolName = d.pool.name.toLowerCase();
-    const displayName = poolName.charAt(0).toUpperCase() + poolName.slice(1);
+    const protocolKey = (item.protocol ?? "").toLowerCase();
+    const protocolDisplayName = protocolKey ? protocolKey.charAt(0).toUpperCase() + protocolKey.slice(1) : "Protocol";
+    const poolName = d.pool.name;
     const liquidationPrice = d.quote?.liquidationPrice ?? 0;
     const targetLtvPct = d.quote?.targetLtv != null ? formatPct(d.quote.targetLtv) : "—";
     const btcPriceUsd =
@@ -128,17 +129,22 @@ export function BorrowOffers({
         )}
         <p className="mb-6 flex items-center gap-2 text-base text-amplifi-text">
           <img src={LOGOS.borrow} alt="borrow" className="h-5 w-5" />
-          {isBest ? `${displayName}'s Best Offer` : `${displayName}'s Offer`}
+          {isBest ? `${protocolDisplayName}'s Best Offer` : `${protocolDisplayName}'s Offer`}
         </p>
         <div className="mb-6 flex items-center gap-2 justify-between">
-          <div className="flex items-center gap-2">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amplifi-primary text-sm font-semibold text-white">
-              {d.pool.name.charAt(0)}
-            </div>
-            <span className="text-sm font-medium capitalize text-amplifi-text">{poolName}</span>
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            <img
+              src={getProtocolIconUrl(item.protocol)}
+              alt=""
+              className="h-4 w-auto shrink-0 object-contain"
+            />
+            <span className="text-sm font-medium text-amplifi-text break-words min-w-0">
+              {protocolDisplayName}
+              {poolName ? ` · ${poolName}` : ""}
+            </span>
             {isBest && (
               <span
-              className="rounded-[4px] text-amplifi-risk-safe bg-amplifi-risk-safe-bg/50 px-1.5 py-0.5 text-sm font-normal tracking-[-0.28px]"
+                className="rounded-[4px] text-amplifi-risk-safe bg-amplifi-risk-safe-bg/50 px-1.5 py-0.5 text-sm font-normal tracking-[-0.28px] shrink-0"
               >
                 Best Offer
               </span>
@@ -155,31 +161,31 @@ export function BorrowOffers({
           )}
         </div>
         <div className="mb-6 grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3 lg:grid-cols-5">
-          <div>
-            <p className="text-xs text-amplifi-muted">Net APY</p>
+          <div className="min-w-0">
+            <p className="text-xs text-amplifi-muted break-words">Net APY</p>
             <p className="text-sm font-semibold text-amplifi-text">{formatPct(d.netApy)}%</p>
           </div>
-          <div>
-            <p className="text-xs text-amplifi-muted">Max LTV</p>
+          <div className="min-w-0">
+            <p className="text-xs text-amplifi-muted break-words">Max LTV</p>
             <p className="text-sm font-semibold text-amplifi-text">{formatPct(d.maxLtv)}%</p>
           </div>
-          <div>
-            <p className="text-xs text-amplifi-muted">Liquidation price</p>
+          <div className="min-w-0">
+            <p className="text-xs text-amplifi-muted break-words">Liquidation price</p>
             <p className="text-sm font-semibold text-amplifi-text">
               {liquidationPrice > 0 ? `$${liquidationPrice.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "—"}
             </p>
           </div>
-          <div>
-            <p className="text-xs text-amplifi-muted">Collateral</p>
+          <div className="min-w-0">
+            <p className="text-xs text-amplifi-muted break-words">Collateral</p>
             <p className="flex items-center gap-1.5 text-sm font-semibold text-amplifi-text">
-              <img src={getAssetIconUrl(d.collateral.symbol)} alt="" className="h-4 w-4 rounded-full" />
+              <img src={getAssetIconUrl(d.collateral.symbol)} alt="" className="h-4 w-4 shrink-0 rounded-full" />
               {d.collateral.symbol}
             </p>
           </div>
-          <div>
-            <p className="text-xs text-amplifi-muted">Loan</p>
+          <div className="min-w-0">
+            <p className="text-xs text-amplifi-muted break-words">Loan</p>
             <p className="flex items-center gap-1.5 text-sm font-semibold text-amplifi-text">
-              <img src={getAssetIconUrl(d.borrow.symbol)} alt="" className="h-4 w-4 rounded-full" />
+              <img src={getAssetIconUrl(d.borrow.symbol)} alt="" className="h-4 w-4 shrink-0 rounded-full" />
               {d.borrow.symbol}
             </p>
           </div>
@@ -245,13 +251,14 @@ export function BorrowOffers({
               Protocol
             </div>
             <p className="text-sm text-amplifi-muted">
-              Your loan is powered by {displayName}, an open source lending protocol. By continuing, you agree to{" "}
+              Your loan is powered by {protocolDisplayName}
+              {poolName ? ` (${poolName})` : ""}, an open source lending protocol. By continuing, you agree to{" "}
               <a
                 href="#"
                 className="font-medium text-amplifi-primary underline hover:text-amplifi-primary-hover"
                 onClick={(e) => e.preventDefault()}
               >
-                {d.pool.name.toUpperCase()}'s Terms of Use
+                {poolName}'s Terms of Use
               </a>
               .
             </p>
@@ -276,6 +283,9 @@ export function BorrowOffers({
         <ul className="space-y-0">
           {offers.map((item, index) => {
             const d = item.data;
+            const protocolKey = (item.protocol ?? "").toLowerCase();
+            const protocolDisplayName = protocolKey ? protocolKey.charAt(0).toUpperCase() + protocolKey.slice(1) : "Protocol";
+            const poolName = d.pool.name;
             const liquidationPrice = d.quote?.liquidationPrice ?? 0;
             const isBest = index === 0;
             return (
@@ -285,25 +295,27 @@ export function BorrowOffers({
                 tabIndex={0}
                 className="flex flex-col gap-4 border-b border-amplifi-border py-6 last:border-b-0"
               >
-                {/* Top row: logo, pool name + Best Offer tag, arrow */}
+                {/* Top row: protocol icon, protocol name + pool name, Best Offer tag, arrow */}
                 <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2">
-                    <div
-                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amplifi-primary text-sm font-semibold text-white"
-                      aria-hidden
-                    >
-                      {d.pool.name.charAt(0)}
-                    </div>
-                    <span className="text-sm font-medium capitalize text-amplifi-text">
-                      {d.pool.name.toLowerCase()}
-                    </span>
-                    {isBest && (
-                      <span
-                      className="rounded-[4px] text-amplifi-risk-safe bg-amplifi-risk-safe-bg/50 px-1.5 py-0.5 text-sm font-normal tracking-[-0.28px]"
-                      >
-                        Best Offer
+                  <div className="flex min-w-0 flex-1 items-center gap-2">
+                    <img
+                      src={getProtocolIconUrl(item.protocol)}
+                      alt=""
+                      className="h-4 w-auto shrink-0 object-contain"
+                    />
+                    <div className="min-w-0 flex-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <span className="text-sm font-medium text-amplifi-text break-words">
+                        {protocolDisplayName}
+                        {poolName ? ` · ${poolName}` : ""}
                       </span>
-                    )}
+                      {isBest && (
+                        <span
+                          className="rounded-[4px] text-amplifi-risk-safe bg-amplifi-risk-safe-bg/50 px-1.5 py-0.5 text-sm font-normal tracking-[-0.28px] shrink-0"
+                        >
+                          Best Offer
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <img
                     src={LOGOS.next}
@@ -316,20 +328,20 @@ export function BorrowOffers({
 
                 {/* Five columns: label above value */}
                 <div className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3 lg:grid-cols-5">
-                  <div>
-                    <p className="text-xs text-amplifi-muted">Net APY</p>
+                  <div className="min-w-0">
+                    <p className="text-xs text-amplifi-muted break-words">Net APY</p>
                     <p className="text-sm font-semibold text-amplifi-text">
                       {formatPct(d.netApy)}%
                     </p>
                   </div>
-                  <div>
-                    <p className="text-xs text-amplifi-muted">Max LTV</p>
+                  <div className="min-w-0">
+                    <p className="text-xs text-amplifi-muted break-words">Max LTV</p>
                     <p className="text-sm font-semibold text-amplifi-text">
                       {formatPct(d.maxLtv)}%
                     </p>
                   </div>
-                  <div>
-                    <p className="text-xs text-amplifi-muted">Liquidation Price</p>
+                  <div className="min-w-0">
+                    <p className="text-xs text-amplifi-muted break-words">Liquidation Price</p>
                     <p className="text-sm font-semibold text-amplifi-text">
                       {liquidationPrice > 0
                         ? `$${liquidationPrice.toLocaleString("en-US", {
@@ -339,24 +351,24 @@ export function BorrowOffers({
                         : "—"}
                     </p>
                   </div>
-                  <div>
-                    <p className="text-xs text-amplifi-muted">Collateral</p>
+                  <div className="min-w-0">
+                    <p className="text-xs text-amplifi-muted break-words">Collateral</p>
                     <p className="flex items-center gap-1.5 text-sm font-semibold text-amplifi-text">
                       <img
                         src={getAssetIconUrl(d.collateral.symbol)}
                         alt=""
-                        className="h-4 w-4 rounded-full"
+                        className="h-4 w-4 shrink-0 rounded-full"
                       />
                       {d.collateral.symbol}
                     </p>
                   </div>
-                  <div>
-                    <p className="text-xs text-amplifi-muted">Loan</p>
+                  <div className="min-w-0">
+                    <p className="text-xs text-amplifi-muted break-words">Loan</p>
                     <p className="flex items-center gap-1.5 text-sm font-semibold text-amplifi-text">
                       <img
                         src={getAssetIconUrl(d.borrow.symbol)}
                         alt=""
-                        className="h-4 w-4 rounded-full"
+                        className="h-4 w-4 shrink-0 rounded-full"
                       />
                       {d.borrow.symbol}
                     </p>

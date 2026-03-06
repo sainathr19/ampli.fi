@@ -35,6 +35,9 @@ type BitcoinWalletInstance =
 
 export type StarknetSource = "extension" | "privy" | null;
 
+/** Starkzap wallet instance when connected via Privy (in-memory, not persisted). */
+type PrivyStarkzapWallet = unknown;
+
 type WalletState = {
   isXverseAvailable: boolean;
   isUniSatAvailable: boolean;
@@ -50,11 +53,14 @@ type WalletState = {
   starknetSigner: StarknetSigner | null;
   /** Raw Starknet account for earn/staking (starkzap); set when connecting via extension. */
   starknetAccount: WalletAccount | null;
+  /** Starkzap wallet when connected via Privy; used for balance/stake on Earn page (not persisted). */
+  privyStarkzapWallet: PrivyStarkzapWallet | null;
 
   detectProviders: () => void;
   connectBitcoin: (walletType: "xverse" | "unisat") => Promise<void>;
   connectStarknet: () => Promise<void>;
   connectPrivyStarknet: (address: string, signer: StarknetSigner) => void;
+  setPrivyStarkzapWallet: (wallet: PrivyStarkzapWallet | null) => void;
   disconnectBitcoin: () => void;
   disconnectStarknet: () => Promise<void>;
   disconnectPrivyStarknet: () => void;
@@ -77,6 +83,7 @@ export const useWallet = create<WalletState>()(
       bitcoinWalletInstance: null,
       starknetSigner: null,
       starknetAccount: null,
+      privyStarkzapWallet: null,
 
       detectProviders: () => {
         if (typeof window === "undefined") return;
@@ -181,6 +188,10 @@ export const useWallet = create<WalletState>()(
         });
       },
 
+      setPrivyStarkzapWallet: (wallet) => {
+        set({ privyStarkzapWallet: wallet });
+      },
+
       disconnectBitcoin: () => {
         set({
           bitcoinPaymentAddress: null,
@@ -215,6 +226,7 @@ export const useWallet = create<WalletState>()(
           starknetSource: null,
           starknetSigner: null,
           starknetAccount: null,
+          privyStarkzapWallet: null,
           connected: Boolean(get().bitcoinPaymentAddress),
         });
       },

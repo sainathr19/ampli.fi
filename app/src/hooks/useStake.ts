@@ -1,8 +1,8 @@
-import { useCallback, useContext, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { Address, Token } from "starkzap";
-import { ChainDataContext } from "@/context/ChainDataContext";
-import { useInjectedStarkzapWallet } from "@/hooks/useInjectedStarkzapWallet";
+import { useStarkzapWallet } from "@/hooks/useStarkzapWallet";
 import { parseStakeAmount } from "@/lib/staking/starkzapClient";
+import { useWallet } from "@/store/useWallet";
 
 export interface StakeResult {
   txHash: string;
@@ -71,15 +71,17 @@ function extractStakingErrorMessage(err: unknown): string {
 }
 
 export function useStake(): UseStakeResult {
-  const chainData = useContext(ChainDataContext);
-  const starknetSigner = chainData.STARKNET?.wallet?.instance;
+  const getStarkzapWallet = useStarkzapWallet();
+  const { starknetAccount, starknetSource, privyStarkzapWallet } = useWallet();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedTokenBalance, setSelectedTokenBalance] = useState<string | null>(
     null
   );
 
-  const getInjectedWallet = useInjectedStarkzapWallet();
+  const hasEarnWallet = Boolean(
+    starknetAccount || (starknetSource === "privy" && privyStarkzapWallet != null)
+  );
 
   const refreshBalance = useCallback(
     async (token: Token | null) => {
@@ -89,7 +91,8 @@ export function useStake(): UseStakeResult {
       }
 
       try {
-        const wallet = await getInjectedWallet();
+        setError(null);
+        const wallet = await getStarkzapWallet();
         const balance = await wallet.balanceOf(token);
         const formatted = balance.toUnit();
         setSelectedTokenBalance(formatted);
@@ -97,9 +100,10 @@ export function useStake(): UseStakeResult {
         const message =
           err instanceof Error ? err.message : "Failed to fetch token balance";
         setError(message);
+        setSelectedTokenBalance(null);
       }
     },
-    [getInjectedWallet]
+    [getStarkzapWallet]
   );
 
   const stake = useCallback(
@@ -120,7 +124,7 @@ export function useStake(): UseStakeResult {
       setError(null);
 
       try {
-        const wallet = await getInjectedWallet();
+        const wallet = await getStarkzapWallet();
         const parsedAmount = parseStakeAmount(amount, token);
         const tx = await wallet.stake(poolAddress as Address, parsedAmount);
         await tx.wait();
@@ -134,14 +138,14 @@ export function useStake(): UseStakeResult {
         setIsSubmitting(false);
       }
     },
-    [getInjectedWallet, refreshBalance]
+    [getStarkzapWallet, refreshBalance]
   );
 
   useEffect(() => {
-    if (!starknetSigner) {
+    if (!hasEarnWallet) {
       setSelectedTokenBalance(null);
     }
-  }, [starknetSigner]);
+  }, [hasEarnWallet]);
 
   return {
     isSubmitting,

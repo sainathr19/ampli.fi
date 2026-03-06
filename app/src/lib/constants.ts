@@ -58,6 +58,17 @@ export const POOL_ICONS = {
   clearstar: "https://vesu.xyz/img/curator-logos/clearstar-light.png"
 } as const;
 
+/** Protocol icons for borrow offers (vesu, uncap, etc.). Keys are lowercase protocol id. */
+export const PROTOCOL_ICONS: Record<string, string> = {
+  vesu: "/logos/vesu.png",
+  uncap: "/logos/uncap.png",
+};
+
+export function getProtocolIconUrl(protocol: string): string {
+  const key = protocol?.toLowerCase?.() ?? "";
+  return PROTOCOL_ICONS[key] ?? LOGOS.protocol;
+}
+
 const ASSET_ICON_DEFAULT = "https://placehold.co/24x24/8b5cf6/ffffff?text=A";
 
 export function getAssetIconUrl(symbol: string): string {

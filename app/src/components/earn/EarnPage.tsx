@@ -10,8 +10,10 @@ import { LOGOS, getAssetIconUrl } from "@/lib/constants";
 import type { Pool } from "starkzap";
 
 export function EarnPage() {
-  const { starknetAddress, starknetAccount } = useWallet();
-  const hasStarknetConnected = Boolean(starknetAccount?.address);
+  const { starknetAddress, starknetAccount, starknetSource, privyStarkzapWallet } = useWallet();
+  const hasStarknetConnected = Boolean(
+    starknetAccount?.address || (starknetSource === "privy" && starknetAddress)
+  );
   const displayAddress = starknetAccount?.address ?? starknetAddress ?? null;
 
   const {
@@ -56,7 +58,7 @@ export function EarnPage() {
     if (hasStarknetConnected && selectedToken) {
       refreshBalance(selectedToken).catch(() => {});
     }
-  }, [hasStarknetConnected, refreshBalance, selectedToken, displayAddress]);
+  }, [hasStarknetConnected, refreshBalance, selectedToken, displayAddress, privyStarkzapWallet]);
 
   useEffect(() => {
     if (!toastMessage) return;
