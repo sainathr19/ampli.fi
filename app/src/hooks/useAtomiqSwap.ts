@@ -205,7 +205,7 @@ export function useAtomiqSwap(): UseAtomiqSwapResult {
         // Step 4: Wait for BTC confirmation
         setStep("confirming_btc");
         log("Waiting for BTC confirmation...");
-        await waitForBtcConfirmation(handle, 1, (txId, current, target, etaMs) => {
+        await waitForBtcConfirmation(handle, 2, (txId, current, target, etaMs) => {
           log(`  ${txId} (${current}/${target}) ETA: ${Math.floor(etaMs / 1000)}s`);
         });
         log("BTC confirmed!");

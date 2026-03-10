@@ -248,8 +248,20 @@ export function useStake(): UseStakeResult {
 
       try {
         const wallet = await getStarkzapWallet();
-        const staking = await getStakingInstance(poolAddress);
-        const tx = await staking.claimRewards(wallet);
+
+        // Bypass StarkZap's claimRewards which does a strict address string
+        // comparison that fails on format differences (0x0073... vs 0x73...).
+        // Call the pool contract directly instead.
+        const normalizedAddress =
+          "0x" + wallet.address.replace(/^0x/i, "").toLowerCase().padStart(64, "0");
+
+        const tx = await wallet.execute([
+          {
+            contractAddress: poolAddress as Address,
+            entrypoint: "claim_rewards",
+            calldata: [normalizedAddress],
+          },
+        ]);
         await tx.wait();
         await refreshBalance(token);
         return { txHash: tx.hash, explorerUrl: tx.explorerUrl };
