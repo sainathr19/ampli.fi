@@ -1,6 +1,7 @@
 import { type LoanOfferItem } from "@/lib/amplifi-api";
 import { getAssetIconUrl, getProtocolIconUrl, LOGOS } from "@/lib/constants";
 import { BorrowOffersListSkeleton } from "@/components/skeletons";
+import { PaginationControls } from "@/components/ui/PaginationControls";
 
 function formatPct(n: number): string {
   return (n * 100).toFixed(2);
@@ -12,12 +13,22 @@ export interface BorrowOffersListProps {
   borrowUsd?: number;
   targetLtv?: number;
   onSelectOffer?: (offer: { item: LoanOfferItem; isBest: boolean }) => void;
+  page?: number;
+  totalPages?: number;
+  hasNextPage?: boolean;
+  hasPrevPage?: boolean;
+  onPageChange?: (page: number) => void;
 }
 
 export function BorrowOffersList({
   offers,
   loading,
   onSelectOffer,
+  page = 1,
+  totalPages = 1,
+  hasNextPage = false,
+  hasPrevPage = false,
+  onPageChange,
 }: BorrowOffersListProps) {
   const error: string | null = null;
 
@@ -40,7 +51,7 @@ export function BorrowOffersList({
               : "Protocol";
             const poolName = d.pool.name;
             const liquidationPrice = d.quote?.liquidationPrice ?? 0;
-            const isBest = index === 0;
+            const isBest = (page - 1) * 4 + index === 0;
             return (
               <li
                 key={d.offerId}
@@ -127,6 +138,15 @@ export function BorrowOffersList({
       )}
       {!loading && !error && offers.length === 0 && (
         <p className="text-sm text-amplifi-text-muted">No offers found.</p>
+      )}
+      {onPageChange && (
+        <PaginationControls
+          page={page}
+          totalPages={totalPages}
+          hasNextPage={hasNextPage}
+          hasPrevPage={hasPrevPage}
+          onPageChange={onPageChange}
+        />
       )}
     </section>
   );

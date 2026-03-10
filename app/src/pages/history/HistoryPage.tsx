@@ -108,19 +108,19 @@ export function HistoryPage() {
         </p>
       </div>
 
-      <div className="rounded-amplifi-lg bg-white p-4 sm:p-5 md:p-6">
-        <p className="mb-4 flex items-center gap-2 text-base text-amplifi-text">
-          <img src={LOGOS.borrow} alt="history" className="h-5 w-5" />
-          Orders
-        </p>
 
-        {loading ? (
-          <HistoryListSkeleton />
-        ) : error ? (
-          <p className="text-sm text-red-600">{error}</p>
-        ) : orders.length === 0 ? (
-          <p className="text-sm text-amplifi-muted">No orders yet.</p>
-        ) : (
+      {loading ? (
+        <HistoryListSkeleton />
+      ) : error ? (
+        <p className="text-sm text-red-600">{error}</p>
+      ) : orders.length === 0 ? (
+        <p className="text-sm text-amplifi-muted">No orders yet.</p>
+      ) : (
+        <div className="rounded-amplifi-lg bg-white p-4 sm:p-5 md:p-6">
+          <p className="mb-4 flex items-center gap-2 text-base text-amplifi-text">
+            <img src={LOGOS.borrow} alt="history" className="h-5 w-5" />
+            Orders
+          </p>
           <ul className="space-y-0">
             {orders.map((order) => {
               const badge = statusBadge(order.status);
@@ -181,32 +181,32 @@ export function HistoryPage() {
               );
             })}
           </ul>
-        )}
+        </div>
+      )}
 
-        {meta && meta.totalPages > 1 && (
-          <div className="mt-6 flex items-center justify-center gap-2">
-            <button
-              type="button"
-              disabled={!meta.hasPrevPage}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              className="rounded-lg border border-amplifi-border px-4 py-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Previous
-            </button>
-            <span className="text-sm text-amplifi-muted">
-              Page {page} of {meta.totalPages}
-            </span>
-            <button
-              type="button"
-              disabled={!meta.hasNextPage}
-              onClick={() => setPage((p) => p + 1)}
-              className="rounded-lg border border-amplifi-border px-4 py-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Next
-            </button>
-          </div>
-        )}
-      </div>
+      {meta && meta.totalPages > 1 && (
+        <div className="mt-6 flex items-center justify-center gap-2">
+          <button
+            type="button"
+            disabled={!meta.hasPrevPage}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            className="rounded-lg border border-amplifi-border px-4 py-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Previous
+          </button>
+          <span className="text-sm text-amplifi-muted">
+            Page {page} of {meta.totalPages}
+          </span>
+          <button
+            type="button"
+            disabled={!meta.hasNextPage}
+            onClick={() => setPage((p) => p + 1)}
+            className="rounded-lg border border-amplifi-border px-4 py-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Next
+          </button>
+        </div>
+      )}
     </div>
   );
 }

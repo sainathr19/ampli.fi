@@ -31,8 +31,8 @@ export const BTC_EXPLORER_BASE = IS_MAINNET
 /** Starknet tx explorer (Sepolia or mainnet). */
 export const STARKNET_EXPLORER_BASE =
   NETWORK === "mainnet"
-    ? "https://starkscan.co"
-    : "https://sepolia.starkscan.co";
+    ? "https://voyager.online/"
+    : "https://sepolia.voyager.online";
 
 export const STORAGE_KEYS = {
   userId: "amplifi_privy_user_id",
@@ -68,7 +68,7 @@ export const ASSET_ICONS = {
 
 export const POOL_ICONS = {
   re7: "",
-  clearstar: "https://vesu.xyz/img/curator-logos/clearstar-light.png"
+  clearstar: "https://vesu.xyz/img/curator-logos/clearstar-light.png",
 } as const;
 
 /** Protocol icons for borrow offers (vesu, uncap, etc.). Keys are lowercase protocol id. */
@@ -90,4 +90,16 @@ export function getAssetIconUrl(symbol: string): string {
   return `${ASSET_ICON_DEFAULT}${s[0] ?? "?"}`;
 }
 
-export const POOL_ICON_PLACEHOLDER = "https://placehold.co/40x40/033122/ffffff?text=P";
+export const POOL_ICON_PLACEHOLDER =
+  "https://placehold.co/40x40/033122/ffffff?text=P";
+
+/** Staking protocol icons for Earn page pools. */
+export const STAKING_PROTOCOL_ICONS: Record<string, string> = {
+  native_staking: ASSET_ICONS.STRK,
+  endur: "/logos/endur.avif",
+};
+
+export function getStakingProtocolIconUrl(protocol: string): string | null {
+  const key = protocol?.toLowerCase?.() ?? "";
+  return STAKING_PROTOCOL_ICONS[key] ?? null;
+}

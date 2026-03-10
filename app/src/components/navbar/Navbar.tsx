@@ -1,14 +1,15 @@
 import { useState, useEffect } from "react";
+import { NavLink } from "react-router-dom";
 import { LOGOS } from "@/lib/constants";
 import { useWallet } from "@/store/useWallet";
 
 export type TabId = "borrow" | "earn" | "swap" | "history";
 
-const TABS: { id: TabId; label: string }[] = [
-  { id: "borrow", label: "Borrow" },
-  { id: "earn", label: "Earn" },
-  { id: "swap", label: "Swap" },
-  { id: "history", label: "History" },
+const TABS: { id: TabId; label: string; path: string }[] = [
+  { id: "borrow", label: "Borrow", path: "/borrow" },
+  { id: "earn", label: "Earn", path: "/earn" },
+  { id: "swap", label: "Swap", path: "/swap" },
+  { id: "history", label: "History", path: "/history" },
 ];
 
 function short(addr?: string | null, leading = 6, trailing = 4) {
@@ -18,12 +19,10 @@ function short(addr?: string | null, leading = 6, trailing = 4) {
 }
 
 interface NavbarProps {
-  activeTab: TabId;
-  setActiveTab: (id: TabId) => void;
   onOpenConnect: () => void;
 }
 
-export function Navbar({ activeTab, setActiveTab, onOpenConnect }: NavbarProps) {
+export function Navbar({ onOpenConnect }: NavbarProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const { isConnecting, connected, bitcoinPaymentAddress, starknetAddress } =
     useWallet();
@@ -51,30 +50,31 @@ export function Navbar({ activeTab, setActiveTab, onOpenConnect }: NavbarProps) 
     };
   }, [menuOpen]);
 
-  const handleTabSelect = (id: TabId) => {
-    setActiveTab(id);
-    setMenuOpen(false);
-  };
+  const navLinkClass = ({
+    isActive,
+  }: {
+    isActive: boolean;
+    isPending: boolean;
+  }) =>
+    `flex items-center justify-center gap-2.5 rounded-[10px] px-5 py-3 text-sm font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-amplifi-primary focus-visible:ring-offset-2 ${
+      isActive
+        ? "bg-amplifi-nav text-white"
+        : "text-amplifi-text hover:text-amplifi-text"
+    }`;
 
   const navLinks = (
     <>
-      {TABS.map(({ id, label }) => {
-        const isActive = activeTab === id;
-        return (
-          <button
-            key={id}
-            type="button"
-            onClick={() => handleTabSelect(id)}
-            className={
-              isActive
-                ? "flex items-center justify-center gap-2.5 rounded-[10px] bg-amplifi-nav px-5 py-3 text-sm font-medium text-white transition-colors"
-                : "flex items-center justify-center gap-2.5 px-5 py-3 text-sm font-medium text-amplifi-text transition-colors hover:text-amplifi-text"
-            }
-          >
-            {label}
-          </button>
-        );
-      })}
+      {TABS.map(({ id, label, path }) => (
+        <NavLink
+          key={id}
+          to={path}
+          end={id === "earn" || id === "swap"}
+          className={navLinkClass}
+          onClick={() => setMenuOpen(false)}
+        >
+          {label}
+        </NavLink>
+      ))}
     </>
   );
 
@@ -176,23 +176,23 @@ export function Navbar({ activeTab, setActiveTab, onOpenConnect }: NavbarProps) 
             </button>
           </div>
           <nav className="flex flex-col gap-1 p-4">
-            {TABS.map(({ id, label }) => {
-              const isActive = activeTab === id;
-              return (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => handleTabSelect(id)}
-                  className={
+            {TABS.map(({ id, label, path }) => (
+              <NavLink
+                key={id}
+                to={path}
+                end={id === "earn" || id === "swap"}
+                className={({ isActive }) =>
+                  `flex items-center rounded-[10px] px-4 py-3 text-sm font-medium outline-none focus-visible:ring-2 focus-visible:ring-amplifi-primary focus-visible:ring-offset-2 ${
                     isActive
-                      ? "flex items-center rounded-[10px] bg-amplifi-nav px-4 py-3 text-sm font-medium text-white"
-                      : "flex items-center rounded-[10px] px-4 py-3 text-sm font-medium text-amplifi-text hover:bg-amplifi-surface"
-                  }
-                >
-                  {label}
-                </button>
-              );
-            })}
+                      ? "bg-amplifi-nav text-white"
+                      : "text-amplifi-text hover:bg-amplifi-surface"
+                  }`
+                }
+                onClick={() => setMenuOpen(false)}
+              >
+                {label}
+              </NavLink>
+            ))}
           </nav>
           <div className="mt-auto border-t border-amplifi-border p-4">
             {connectButton}

@@ -2,12 +2,16 @@ import { useState, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { SupplyBorrowForm } from "@/components/borrow/SupplyBorrowForm";
 import { BorrowOffersList } from "@/components/borrow/BorrowOffersList";
-import { getLoanOffers, type LoanOfferItem } from "@/lib/amplifi-api";
+import { getLoanOffers, type LoanOfferItem, type PaginationMeta } from "@/lib/amplifi-api";
+
+const OFFERS_PER_PAGE = 4;
 
 export function BorrowHomePage() {
   const navigate = useNavigate();
   const [loanParams, setLoanParams] = useState({ borrowUsd: 1000, targetLtv: 0.5 });
   const [offers, setOffers] = useState<LoanOfferItem[]>([]);
+  const [offersMeta, setOffersMeta] = useState<PaginationMeta | null>(null);
+  const [offersPage, setOffersPage] = useState(1);
   const [offersLoading, setOffersLoading] = useState(true);
 
   useEffect(() => {
@@ -21,26 +25,32 @@ export function BorrowHomePage() {
       targetLtv,
       sortBy: "netApy",
       sortOrder: "desc",
-      limit: 20,
+      page: offersPage,
+      limit: OFFERS_PER_PAGE,
     })
       .then((res) => {
         if (!cancelled) {
           setOffers(res.data);
+          setOffersMeta(res.meta);
         }
       })
       .catch(() => {
-        if (!cancelled) setOffers([]);
+        if (!cancelled) {
+          setOffers([]);
+          setOffersMeta(null);
+        }
       })
       .finally(() => {
         if (!cancelled) setOffersLoading(false);
       });
     return () => { cancelled = true; };
-  }, [loanParams.borrowUsd, loanParams.targetLtv]);
+  }, [loanParams.borrowUsd, loanParams.targetLtv, offersPage]);
 
   const onLoanParamsChange = useCallback((borrowUsd: number, targetLtv: number) => {
     setLoanParams((prev) =>
       prev.borrowUsd === borrowUsd && prev.targetLtv === targetLtv ? prev : { borrowUsd, targetLtv }
     );
+    setOffersPage(1);
   }, []);
 
   const onGetTheLoan = useCallback(() => {
@@ -97,6 +107,11 @@ export function BorrowHomePage() {
             borrowUsd={loanParams.borrowUsd}
             targetLtv={loanParams.targetLtv}
             onSelectOffer={onSelectOffer}
+            page={offersPage}
+            totalPages={offersMeta?.totalPages ?? 1}
+            hasNextPage={offersMeta?.hasNextPage ?? false}
+            hasPrevPage={offersMeta?.hasPrevPage ?? false}
+            onPageChange={setOffersPage}
           />
         </div>
       </div>

@@ -9,7 +9,7 @@ import { getAddressExplorerUrl, getTxExplorerUrl } from "@/lib/staking/explorer"
 import { ENDUR_XSTRK_ADDRESS } from "@/lib/staking/endurClient";
 import { isBtcLikeSymbol } from "@/lib/staking/tokenUtils";
 import { useWallet } from "@/store/useWallet";
-import { LOGOS, getAssetIconUrl } from "@/lib/constants";
+import { LOGOS, ASSET_ICONS, getAssetIconUrl, getStakingProtocolIconUrl } from "@/lib/constants";
 import { EarnPoolsPanelSkeleton } from "@/components/skeletons";
 import type { DstToken } from "@/lib/atomiq/swapService";
 import {
@@ -21,6 +21,7 @@ import {
   type EarnPositionData,
   type BridgeOrder,
 } from "@/lib/amplifi-api";
+import { PaginationControls } from "@/components/ui/PaginationControls";
 
 type SourceAsset = "STRK" | "BTC";
 
@@ -83,6 +84,7 @@ export function EarnPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sourceAsset, setSourceAsset] = useState<SourceAsset>("STRK");
+  const [poolsPage, setPoolsPage] = useState(1);
   const [selectedPool, setSelectedPool] = useState<{
     item: EarnPoolItem;
     isBest: boolean;
@@ -97,9 +99,21 @@ export function EarnPage() {
     });
   }, [allPools, sourceAsset]);
 
+  const POOLS_PER_PAGE = 4;
+  const poolsTotalPages = Math.max(1, Math.ceil(filteredPools.length / POOLS_PER_PAGE));
+  const visiblePools = useMemo(
+    () =>
+      filteredPools.slice(
+        (poolsPage - 1) * POOLS_PER_PAGE,
+        poolsPage * POOLS_PER_PAGE
+      ),
+    [filteredPools, poolsPage]
+  );
+
   const handleSourceAssetChange = (value: string) => {
     setSourceAsset(value as SourceAsset);
     setSelectedPool(null);
+    setPoolsPage(1);
   };
 
   useEffect(() => {
@@ -161,8 +175,8 @@ export function EarnPage() {
               <ScrollableSelect
                 value={sourceAsset}
                 options={[
-                  { value: "STRK", label: "STRK (Starknet)" },
-                  { value: "BTC", label: "BTC (Bitcoin)" },
+                  { value: "STRK", label: "STRK (Starknet)", iconUrl: ASSET_ICONS.STRK },
+                  { value: "BTC", label: "BTC (Bitcoin)", iconUrl: ASSET_ICONS.BTC },
                 ]}
                 onChange={handleSourceAssetChange}
                 placeholder="Select asset"
@@ -170,11 +184,34 @@ export function EarnPage() {
             </div>
           </div>
 
-          <div className="relative grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-[472px_1fr]">
-            {/* Left column: staking form for selected pool */}
+          <div
+            className={
+              selectedPool
+                ? "relative grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-[1fr_472px]"
+                : "relative"
+            }
+          >
+            {/* When selected: pools on left, form on right. When not: pools only (full width) */}
             <div className="w-full min-w-0">
-              {selectedPool ? (
-                sourceAsset === "BTC" ? (
+              <EarnPoolsList
+                pools={visiblePools}
+                loading={loading}
+                error={error}
+                selectedPool={selectedPool}
+                onSelectPool={setSelectedPool}
+                sourceAsset={sourceAsset}
+                page={poolsPage}
+                totalPages={poolsTotalPages}
+                hasNextPage={poolsPage < poolsTotalPages}
+                hasPrevPage={poolsPage > 1}
+                onPageChange={setPoolsPage}
+                poolsStartIndex={(poolsPage - 1) * POOLS_PER_PAGE}
+              />
+            </div>
+
+            {selectedPool && (
+              <div className="w-full min-w-0">
+                {sourceAsset === "BTC" ? (
                   <BtcStakeForm
                     pool={selectedPool.item}
                     isBest={selectedPool.isBest}
@@ -192,31 +229,9 @@ export function EarnPage() {
                     isBest={selectedPool.isBest}
                     onBack={() => setSelectedPool(null)}
                   />
-                )
-              ) : (
-                <div className="rounded-amplifi bg-white p-4 sm:p-6">
-                  <div className="flex items-center gap-2 mb-3">
-                    <img src={LOGOS.import} alt="" className="h-4 w-4" />
-                    <span className="text-base font-medium text-amplifi-text">Stake</span>
-                  </div>
-                  <p className="text-sm text-amplifi-muted">
-                    Select a pool from the list to start staking.
-                  </p>
-                </div>
-              )}
-            </div>
-
-            {/* Right column: aggregated pools list */}
-            <div className="w-full min-w-0">
-              <EarnPoolsList
-                pools={filteredPools}
-                loading={loading}
-                error={error}
-                selectedPool={selectedPool}
-                onSelectPool={setSelectedPool}
-                sourceAsset={sourceAsset}
-              />
-            </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Stake orders history table */}
@@ -417,6 +432,12 @@ function EarnPoolsList({
   selectedPool,
   onSelectPool,
   sourceAsset,
+  page,
+  totalPages,
+  hasNextPage,
+  hasPrevPage,
+  onPageChange,
+  poolsStartIndex,
 }: {
   pools: EarnPoolItem[];
   loading: boolean;
@@ -424,6 +445,12 @@ function EarnPoolsList({
   selectedPool: { item: EarnPoolItem; isBest: boolean } | null;
   onSelectPool: (sel: { item: EarnPoolItem; isBest: boolean } | null) => void;
   sourceAsset: SourceAsset;
+  page: number;
+  totalPages: number;
+  hasNextPage: boolean;
+  hasPrevPage: boolean;
+  onPageChange: (page: number) => void;
+  poolsStartIndex: number;
 }) {
   return (
     <section className="rounded-amplifi-lg bg-white p-4 sm:p-5 md:p-6 md:h-fit md:min-h-0">
@@ -442,21 +469,37 @@ function EarnPoolsList({
         <ul className="space-y-0">
           {pools.map((item, index) => {
             const d = item.data;
-            const isBest = index === 0;
+            const isBest = poolsStartIndex + index === 0;
             const isSelected = selectedPool?.item.data.id === d.id;
             return (
               <li
                 key={d.id}
                 role="button"
                 tabIndex={0}
-                className="flex flex-col gap-4 border-b border-amplifi-border py-6 last:border-b-0"
+                onClick={() => onSelectPool({ item, isBest })}
+                onKeyDown={(e) =>
+                  e.key === "Enter" && onSelectPool({ item, isBest })
+                }
+                className={`flex flex-col gap-4 border-b border-amplifi-border py-6 last:border-b-0 cursor-pointer transition-colors ${
+                  isSelected
+                    ? "bg-amplifi-best-offer rounded-amplifi -mx-4 sm:-mx-5 md:-mx-6 px-4 sm:px-5 md:px-6"
+                    : ""
+                }`}
               >
                 {/* Top row: protocol, validator name, Best Offer tag, arrow */}
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex min-w-0 flex-1 items-center gap-2">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amplifi-primary text-xs font-semibold text-white">
-                      {d.token.symbol?.charAt(0) ?? "?"}
-                    </div>
+                    {getStakingProtocolIconUrl(item.protocol) ? (
+                      <img
+                        src={getStakingProtocolIconUrl(item.protocol)!}
+                        alt=""
+                        className="h-8 w-8 shrink-0 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amplifi-primary text-xs font-semibold text-white">
+                        {d.token.symbol?.charAt(0) ?? "?"}
+                      </div>
+                    )}
                     <div className="min-w-0 flex-1 flex flex-wrap items-center gap-x-2 gap-y-1">
                       <span className="text-sm font-medium text-amplifi-text break-words">
                         {protocolDisplayName(item.protocol)}
@@ -468,21 +511,13 @@ function EarnPoolsList({
                           Best Offer
                         </span>
                       )}
-                      {isSelected && (
-                        <span className="rounded-[4px] bg-amplifi-best-offer px-1.5 py-0.5 text-sm font-normal text-amplifi-best-offer-text shrink-0">
-                          Selected
-                        </span>
-                      )}
                     </div>
                   </div>
                   <img
                     src={LOGOS.next}
-                    alt="select"
-                    className="h-7 w-7 shrink-0 text-amplifi-muted cursor-pointer"
-                    onClick={() => onSelectPool({ item, isBest })}
-                    onKeyDown={(e) =>
-                      e.key === "Enter" && onSelectPool({ item, isBest })
-                    }
+                    alt=""
+                    className="h-7 w-7 shrink-0 text-amplifi-muted"
+                    aria-hidden
                   />
                 </div>
 
@@ -533,6 +568,13 @@ function EarnPoolsList({
           })}
         </ul>
       )}
+      <PaginationControls
+        page={page}
+        totalPages={totalPages}
+        hasNextPage={hasNextPage}
+        hasPrevPage={hasPrevPage}
+        onPageChange={onPageChange}
+      />
     </section>
   );
 }
@@ -1106,7 +1148,7 @@ function NativeStakeForm({
             />
           </div>
 
-          <p className="text-xs text-amplifi-muted break-all">
+          <p className="text-xs text-amplifi-muted">
             Pool:{" "}
             <a
               href={getAddressExplorerUrl(pool.data.poolContract)}
@@ -1114,7 +1156,7 @@ function NativeStakeForm({
               rel="noreferrer"
               className="text-amplifi-primary underline hover:text-amplifi-primary-hover"
             >
-              {pool.data.poolContract}
+              {pool.data.poolContract.slice(0, 25)}...{pool.data.poolContract.slice(-20)}
             </a>
           </p>
 
@@ -2012,9 +2054,17 @@ function PortfolioSection({
 
                   {/* Protocol info */}
                   <div className="mb-6 flex items-center gap-2">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amplifi-primary text-xs font-semibold text-white">
-                      {tokenSymbol.charAt(0)}
-                    </div>
+                    {getStakingProtocolIconUrl(item.protocol) ? (
+                      <img
+                        src={getStakingProtocolIconUrl(item.protocol)!}
+                        alt=""
+                        className="h-8 w-8 shrink-0 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amplifi-primary text-xs font-semibold text-white">
+                        {tokenSymbol.charAt(0)}
+                      </div>
+                    )}
                     <span className="text-sm font-medium text-amplifi-text break-words min-w-0">
                       {protocolDisplayName(item.protocol)} · {validatorName}
                     </span>

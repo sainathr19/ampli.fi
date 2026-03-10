@@ -1,11 +1,11 @@
 import { useEffect } from "react";
-import { BrowserRouter, Routes, Route, useLocation, useNavigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useNavigate } from "react-router-dom";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import WalletConnectionModal from "@/components/ui/WalletConnectionModal";
 import { PrivyStarknetSync } from "@/components/PrivyStarknetSync";
 import { WalletReconnector } from "@/components/WalletReconnector";
 import { useWallet } from "@/store/useWallet";
-import { Navbar, type TabId } from "@/components/navbar";
+import { Navbar } from "@/components/navbar";
 import { ChainDataProvider } from "@/context/ChainDataProvider";
 import { ConnectModalProvider, useConnectModal } from "@/context/ConnectModalContext";
 import {
@@ -19,8 +19,6 @@ import { SwapPage } from "@/pages/swap";
 import { EarnPage } from "@/components/earn";
 
 function AppContent() {
-  const location = useLocation();
-  const navigate = useNavigate();
   const { detectProviders } = useWallet();
   const { isOpen, open, close } = useConnectModal();
 
@@ -28,32 +26,14 @@ function AppContent() {
     detectProviders();
   }, [detectProviders]);
 
-  const path = location.pathname;
-  const activeTab: TabId = path.startsWith("/history")
-    ? "history"
-    : path.startsWith("/earn")
-      ? "earn"
-      : path.startsWith("/swap")
-        ? "swap"
-        : "borrow";
-
   return (
     <>
       <WalletReconnector />
       <PrivyStarknetSync />
-      <div className="min-w-0 overflow-x-hidden px-4 sm:px-6 lg:px-10">
-        <Navbar
-          activeTab={activeTab}
-          setActiveTab={(id) => {
-            if (id === "borrow") navigate("/borrow");
-            else if (id === "earn") navigate("/earn");
-            else if (id === "swap") navigate("/swap");
-            else if (id === "history") navigate("/history");
-          }}
-          onOpenConnect={open}
-        />
+      <div className="flex h-screen min-h-0 flex-col min-w-0 overflow-x-hidden px-4 sm:px-6 lg:px-10">
+        <Navbar onOpenConnect={open} />
 
-        <main className="min-h-screen bg-amplifi-surface">
+        <main className="min-h-0 flex-1 overflow-auto bg-amplifi-surface">
           <Routes>
             <Route path="/" element={<RedirectToBorrow />} />
             <Route path="/borrow" element={<BorrowLayout />}>

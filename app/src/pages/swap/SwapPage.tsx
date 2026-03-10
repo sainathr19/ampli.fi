@@ -24,23 +24,32 @@ export function SwapPage() {
 
   return (
     <div className="relative mx-auto w-full max-w-[1400px] min-w-0 py-6 px-4 sm:py-8 sm:px-0">
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr,minmax(320px,400px)]">
-        {/* Left: Swap form */}
+      <div
+        className="pointer-events-none absolute left-0 top-0 bottom-0 w-full max-w-[50%] min-h-[600px] bg-no-repeat bg-left bg-[length:auto_100%] opacity-[0.06] lg:opacity-[0.08]"
+        style={{ backgroundImage: "url('/mask.svg')" }}
+        aria-hidden
+      />
+      <div className="relative mb-8 flex flex-col gap-4 sm:mb-10 sm:flex-row sm:gap-20 lg:gap-20">
+        <p className="text-2xl font-semibold tracking-tight md:text-3xl">
+          Swap
+        </p>
+        <p className="mt-0 sm:mt-2 text-sm sm:text-base leading-relaxed text-amplifi-text max-w-[899px]">
+          Swap BTC to Starknet. Deposit BTC and receive ETH, STRK, or WBTC on
+          Starknet Sepolia. Connect both wallets to swap.
+        </p>
+      </div>
+      <div className="relative grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-[472px_1fr]">
         <div className="w-full min-w-0">
-          <div className="rounded-amplifi-lg border border-amplifi-border bg-amplifi-surface-muted p-6 sm:p-8">
-            <SwapForm
-              isInitialized={isInitialized}
-              isInitializing={isInitializing}
-              step={step}
-              runSwap={runSwap}
-              getSwapLimits={getSwapLimits}
-              getQuote={getQuote}
-              onConnectWallet={open}
-            />
-          </div>
+          <SwapForm
+            isInitialized={isInitialized}
+            isInitializing={isInitializing}
+            step={step}
+            runSwap={runSwap}
+            getSwapLimits={getSwapLimits}
+            getQuote={getQuote}
+            onConnectWallet={open}
+          />
         </div>
-
-        {/* Right: Swap status */}
         <div className="w-full min-w-0">
           <SwapStatusPanel
             step={step}
