@@ -5,11 +5,13 @@ import {
   initSwapper,
   stopSwapper,
   createSwap,
+  getQuote as getQuoteFromService,
   sendBtcTransaction,
   waitForBtcConfirmation,
   claimOrWaitForWatchtower,
   type DstToken,
   type SwapHandle,
+  type SwapQuote,
 } from "@/lib/atomiq/swapService";
 import {
   createOrder,
@@ -18,6 +20,7 @@ import {
   updateOrderStatus,
 } from "@/lib/amplifi-api";
 import { useWallet } from "@/store/useWallet";
+import { getSwapLimits as getSwapLimitsFromService } from "@/lib/atomiq/swapService";
 
 export type SwapStep =
   | "idle"
@@ -29,6 +32,13 @@ export type SwapStep =
   | "settled"
   | "error";
 
+export interface SwapLimits {
+  minSats: bigint;
+  maxSats: bigint;
+  minBtc: string;
+  maxBtc: string;
+}
+
 export interface UseAtomiqSwapResult {
   isInitialized: boolean;
   isInitializing: boolean;
@@ -36,6 +46,8 @@ export interface UseAtomiqSwapResult {
   logs: string[];
   lastSwapId: string | null;
   lastOrderId: string | null;
+  getSwapLimits: (dstToken: DstToken) => SwapLimits | null;
+  getQuote: (amountBtc: string, dstToken: DstToken) => Promise<SwapQuote | null>;
   runSwap: (params: {
     dstToken: DstToken;
     amountBtc: string;
@@ -232,6 +244,37 @@ export function useAtomiqSwap(): UseAtomiqSwapResult {
     [connected, bitcoinPaymentAddress, starknetAddress, bitcoinWalletInstance, starknetSigner, log]
   );
 
+  const getSwapLimits = useCallback((dstToken: DstToken): SwapLimits | null => {
+    const limits = getSwapLimitsFromService(dstToken);
+    if (!limits?.input?.min?.rawAmount || !limits?.input?.max?.rawAmount) return null;
+    const minSats = limits.input.min.rawAmount as bigint;
+    const maxSats = limits.input.max.rawAmount as bigint;
+    return {
+      minSats,
+      maxSats,
+      minBtc: (Number(minSats) / 1e8).toFixed(8),
+      maxBtc: (Number(maxSats) / 1e8).toFixed(8),
+    };
+  }, []);
+
+  const getQuote = useCallback(
+    async (amountBtc: string, dstToken: DstToken): Promise<SwapQuote | null> => {
+      if (!bitcoinPaymentAddress || !starknetAddress) return null;
+      const amountNum = Number(amountBtc);
+      if (!amountBtc || amountNum <= 0) return null;
+      const amountSats = BigInt(Math.floor(amountNum * 1e8));
+      const quote = await getQuoteFromService({
+        dstToken,
+        amountSats,
+        exactIn: true,
+        bitcoinAddress: bitcoinPaymentAddress,
+        starknetAddress,
+      });
+      return quote;
+    },
+    [bitcoinPaymentAddress, starknetAddress]
+  );
+
   return {
     isInitialized,
     isInitializing,
@@ -239,6 +282,8 @@ export function useAtomiqSwap(): UseAtomiqSwapResult {
     logs,
     lastSwapId,
     lastOrderId,
+    getSwapLimits,
+    getQuote,
     runSwap,
     clearLogs,
   };

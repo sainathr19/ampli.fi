@@ -61,7 +61,7 @@ export function BorrowOfferPage() {
     return () => { cancelled = true; };
   }, [borrowUsd, targetLtv, offerIdParam, locationState?.offer]);
 
-  const onLoanParamsChange = useCallback(() => {}, []);
+  const onLoanParamsChange = useCallback(() => { }, []);
 
   const handleInitiateLoan = useCallback(
     async (params: {
@@ -145,15 +145,15 @@ export function BorrowOfferPage() {
 
   const initialQuote = offer?.item?.data?.quote
     ? (() => {
-        const q = offer.item.data.quote;
-        const amount = q.requiredCollateralAmount;
-        if (amount == null || amount <= 0) return null;
-        return {
-          requiredCollateralAmount: amount,
-          borrowUsd: q.borrowUsd,
-          btcPriceUsd: q.requiredCollateralUsd / amount,
-        };
-      })()
+      const q = offer.item.data.quote;
+      const amount = q.requiredCollateralAmount;
+      if (amount == null || amount <= 0) return null;
+      return {
+        requiredCollateralAmount: amount,
+        borrowUsd: q.borrowUsd,
+        btcPriceUsd: q.requiredCollateralUsd / amount,
+      };
+    })()
     : null;
 
   const layout = (content: React.ReactNode) => (
@@ -166,8 +166,9 @@ export function BorrowOfferPage() {
       <div className="relative mb-8 flex flex-col gap-4 sm:mb-10 sm:flex-row sm:gap-20 lg:gap-20">
         <p className="text-2xl font-semibold tracking-tight md:text-3xl">Borrow</p>
         <p className="mt-0 sm:mt-2 text-sm sm:text-base leading-relaxed text-amplifi-text max-w-[899px]">
-          Borrow against your BTC. Deposit BTC, and we automatically swap and route it into the
-          required collateral pool.
+          Borrow against your BTC. Deposit BTC, and we automatically swap and
+          route it into the required collateral pool. Receive your loan
+          instantly. Repay anytime to unlock and withdraw your BTC.
         </p>
       </div>
       {content}

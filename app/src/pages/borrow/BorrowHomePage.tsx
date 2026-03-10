@@ -77,27 +77,27 @@ export function BorrowHomePage() {
       <div className="relative mb-8 flex flex-col gap-4 sm:mb-10 sm:flex-row sm:gap-20 lg:gap-20">
         <p className="text-2xl font-semibold tracking-tight md:text-3xl">Borrow</p>
         <p className="mt-0 sm:mt-2 text-sm sm:text-base leading-relaxed text-amplifi-text max-w-[899px]">
-          Borrow against your BTC. Deposit BTC, and we automatically swap and route it into the
-          required collateral pool. Receive your loan instantly. Repay anytime to unlock and
-          withdraw your BTC.
+          Borrow against your BTC. Deposit BTC, and we automatically swap and
+          route it into the required collateral pool. Receive your loan
+          instantly. Repay anytime to unlock and withdraw your BTC.
         </p>
       </div>
       <div className="relative grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-[472px_1fr]">
         <div className="w-full min-w-0">
-        <SupplyBorrowForm
-          onLoanParamsChange={onLoanParamsChange}
-          selectedOffer={null}
-          onGetTheLoan={onGetTheLoan}
-        />
-      </div>
-      <div className="w-full min-w-0">
-        <BorrowOffersList
-          offers={offers}
-          loading={offersLoading}
-          borrowUsd={loanParams.borrowUsd}
-          targetLtv={loanParams.targetLtv}
-          onSelectOffer={onSelectOffer}
-        />
+          <SupplyBorrowForm
+            onLoanParamsChange={onLoanParamsChange}
+            selectedOffer={null}
+            onGetTheLoan={onGetTheLoan}
+          />
+        </div>
+        <div className="w-full min-w-0">
+          <BorrowOffersList
+            offers={offers}
+            loading={offersLoading}
+            borrowUsd={loanParams.borrowUsd}
+            targetLtv={loanParams.targetLtv}
+            onSelectOffer={onSelectOffer}
+          />
         </div>
       </div>
     </div>

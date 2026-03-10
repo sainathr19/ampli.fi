@@ -39,18 +39,22 @@ export default function WalletConnectionModal({
   const [connectingUnisat, setConnectingUnisat] = useState(false);
   const [connectingStarknet, setConnectingStarknet] = useState(false);
   const [disconnectingAll, setDisconnectingAll] = useState(false);
+  const [btcConnectError, setBtcConnectError] = useState<string | null>(null);
 
   useEffect(() => {
     setMounted(typeof document !== "undefined");
   }, []);
 
   const onBitcoinConnect = async (walletType: "xverse" | "unisat") => {
+    setBtcConnectError(null);
     if (walletType === "xverse") setConnectingXverse(true);
     else setConnectingUnisat(true);
     try {
       await connectBitcoin(walletType);
     } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
       console.error(e);
+      setBtcConnectError(msg);
     } finally {
       if (walletType === "xverse") setConnectingXverse(false);
       else setConnectingUnisat(false);
@@ -58,6 +62,8 @@ export default function WalletConnectionModal({
   };
 
   const onStarknetConnect = async () => {
+    // Close our modal first so the get-starknet wallet picker isn't hidden behind it
+    onClose();
     setConnectingStarknet(true);
     try {
       await connectStarknet();
@@ -69,6 +75,8 @@ export default function WalletConnectionModal({
   };
 
   const onPrivyConnect = () => {
+    // Close our modal so the Privy modal isn't hidden behind it
+    onClose();
     privyLogin();
   };
 
@@ -175,6 +183,9 @@ export default function WalletConnectionModal({
                   <p className="py-2 text-xs text-amplifi-text">
                     No Bitcoin wallet detected
                   </p>
+                )}
+                {btcConnectError && (
+                  <p className="text-xs text-red-600">{btcConnectError}</p>
                 )}
               </div>
             )}

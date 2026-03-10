@@ -73,3 +73,43 @@
   background-size: 200% 100%;
   animation: skeleton-shimmer 1.5s ease-in-out infinite;
 }
+
+/* Override @starknet-io/get-starknet modal to match AmpliFi colors */
+:root starknet-modal,
+starknet-modal {
+  --sn-bg: #F6F6F6 !important;
+  --sn-border: #e5e7eb !important;
+  --sn-text: #1a1a1a !important;
+}
+
+/* The get-starknet modal renders in a shadow host; target the wrapper if exposed */
+[data-testid="starknet-modal"],
+.starknetkit-modal,
+div[class*="svelte-j32xt0"] {
+  font-family: "Halenoir", system-ui, sans-serif !important;
+}
+
+/* Restyle the get-starknet modal container (light surface bg, matching border radius) */
+div[class*="svelte-j32xt0"].bg-slate-50,
+div[class*="svelte-j32xt0"].bg-slate-100 {
+  background-color: #F6F6F6 !important;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 16px !important;
+  color: #1a1a1a !important;
+}
+
+/* Wallet list items hover state */
+div[class*="svelte-j32xt0"] [role="button"]:hover {
+  background-color: #eaeaea !important;
+}
+
+/* Modal title and text colors */
+div[class*="svelte-j32xt0"] h1 {
+  color: #1a1a1a !important;
+}
+
+/* Backdrop overlay */
+div[class*="svelte-j32xt0"].bg-black\/25 {
+  background-color: rgba(0, 0, 0, 0.45) !important;
+  backdrop-filter: blur(2px) !important;
+}

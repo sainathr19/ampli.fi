@@ -276,3 +276,65 @@ export function getSwapLimits(dstToken: DstToken) {
   const token = getStarknetToken(dstToken);
   return swapper.getSwapLimits(Tokens.BITCOIN.BTC, token);
 }
+
+/**
+ * Fetches a quote for BTC → dstToken swap (onesat pattern).
+ * Calls swapper.swap() which creates a swap; we return the quote and discard the swap.
+ * A fresh swap is created when the user executes.
+ */
+export async function getQuote(params: {
+  dstToken: DstToken;
+  amountSats: bigint;
+  exactIn: boolean;
+  bitcoinAddress: string;
+  starknetAddress: string;
+}): Promise<SwapQuote | null> {
+  if (_initPromise) {
+    try {
+      await _initPromise;
+    } catch {
+      return null;
+    }
+  }
+  const swapper = _swapper;
+  if (!swapper) return null;
+
+  const token = getStarknetToken(params.dstToken);
+  const starkAddr = params.starknetAddress.startsWith("0x")
+    ? "0x" + params.starknetAddress.slice(2).padStart(64, "0")
+    : params.starknetAddress;
+
+  try {
+    const swap = await swapper.swap(
+      Tokens.BITCOIN.BTC,
+      token,
+      params.amountSats,
+      params.exactIn,
+      params.bitcoinAddress,
+      starkAddr,
+      { feeSafetyFactor: 1.25 }
+    );
+
+    const feeBreakdown = swap.getFeeBreakdown().map(
+      (f: { type: number; fee: { amountInSrcToken: bigint } }) => ({
+        type: FeeType[f.type] ?? String(f.type),
+        amount: f.fee.amountInSrcToken,
+      })
+    );
+    const expiryTime = swap.getQuoteExpiry();
+    const expirySeconds = Math.max(0, Math.floor((expiryTime - Date.now()) / 1000));
+
+    return {
+      swapId: swap.getId(),
+      inputWithoutFee: swap.getInputWithoutFee(),
+      fees: swap.getFee().amountInSrcToken,
+      feeBreakdown,
+      inputWithFees: swap.getInput(),
+      output: swap.getOutput().toString(),
+      expirySeconds,
+    };
+  } catch (e) {
+    console.error("[atomiq] getQuote failed:", e);
+    return null;
+  }
+}
