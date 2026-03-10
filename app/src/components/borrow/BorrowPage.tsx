@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { SupplyBorrowForm } from "./SupplyBorrowForm";
 import { BorrowOffers, type LoanFlowState } from "./BorrowOffers";
-import { type LoanOfferItem } from "@/lib/amplifi-api";
+import { type LoanOfferItem, updateSupplyTx, getOrder } from "@/lib/amplifi-api";
 import { useAtomiqSwap } from "@/hooks/useAtomiqSwap";
 import { useVesuDeposit } from "@/hooks/useVesuDeposit";
 import type { DepositPhase } from "./LoanStatusPanel";
@@ -29,37 +29,66 @@ export function BorrowPage() {
     [lastOrderId]
   );
 
-  // Auto-deposit WBTC into Vesu after swap settles
-  useEffect(() => {
-    if (step !== "settled" || depositTriggeredRef.current || !selectedOffer) return;
+  const handleBackendSettled = useCallback(async () => {
+    if (depositTriggeredRef.current) return;
 
-    const vTokenAddress = selectedOffer.item.data.collateral.vTokenAddress;
+    let vTokenAddress: string | undefined;
+    let rawAmount: string | undefined;
+
+    // Try selectedOffer first, fall back to order's depositParams
+    if (selectedOffer) {
+      vTokenAddress = selectedOffer.item.data.collateral.vTokenAddress ?? undefined;
+      const quote = selectedOffer.item.data.quote;
+      if (vTokenAddress && quote?.requiredCollateralAmount) {
+        const decimals = selectedOffer.item.data.collateral.decimals ?? 8;
+        rawAmount = BigInt(
+          Math.floor(quote.requiredCollateralAmount * 10 ** decimals)
+        ).toString();
+      }
+    }
+
+    // Fallback: read depositParams from the persisted order
+    if ((!vTokenAddress || !rawAmount) && lastOrderId) {
+      try {
+        const res = await getOrder(lastOrderId);
+        const dp = res.data?.depositParams;
+        if (dp) {
+          vTokenAddress = dp.vTokenAddress;
+          rawAmount = dp.collateralAmount;
+        }
+      } catch {
+        // ignore fetch errors, will fail below
+      }
+    }
+
     if (!vTokenAddress) {
       console.warn("No vToken address found for collateral deposit");
       return;
     }
-
-    // Get the collateral amount from the quote (in raw token units)
-    const quote = selectedOffer.item.data.quote;
-    if (!quote?.requiredCollateralAmount) return;
-
-    const decimals = selectedOffer.item.data.collateral.decimals ?? 8;
-    const rawAmount = BigInt(
-      Math.floor(quote.requiredCollateralAmount * 10 ** decimals)
-    ).toString();
+    if (!rawAmount) return;
 
     depositTriggeredRef.current = true;
     setDepositPhase("depositing");
 
-    deposit(rawAmount, vTokenAddress)
-      .then(() => {
-        setDepositPhase("done");
-      })
-      .catch((err) => {
-        console.error("Vesu deposit failed:", err);
-        setDepositPhase("error");
-      });
-  }, [step, selectedOffer, deposit]);
+    try {
+      const txHash = await deposit(rawAmount, vTokenAddress);
+      setDepositPhase("done");
+      if (lastOrderId && txHash) {
+        updateSupplyTx(lastOrderId, txHash).catch((err) =>
+          console.error("Failed to persist supplyTxId:", err)
+        );
+      }
+    } catch (err) {
+      console.error("Vesu deposit failed:", err);
+      setDepositPhase("error");
+    }
+  }, [selectedOffer, deposit, lastOrderId]);
+
+  // Auto-deposit WBTC into Vesu after swap settles (frontend step detection)
+  useEffect(() => {
+    if (step !== "settled") return;
+    handleBackendSettled();
+  }, [step, handleBackendSettled]);
 
   // Reset deposit state when starting a new loan
   useEffect(() => {
@@ -95,12 +124,40 @@ export function BorrowPage() {
         return;
       }
 
+      const vTokenAddress = selectedOffer.item.data.collateral.vTokenAddress;
+      const quote = selectedOffer.item.data.quote;
+      const decimals = selectedOffer.item.data.collateral.decimals ?? 8;
+
+      let depositParams: { vTokenAddress: string; collateralAmount: string; decimals: number } | undefined;
+      if (vTokenAddress) {
+        const collateralAmount = quote?.requiredCollateralAmount;
+        if (collateralAmount != null && collateralAmount > 0) {
+          depositParams = {
+            vTokenAddress,
+            collateralAmount: BigInt(
+              Math.floor(collateralAmount * 10 ** decimals)
+            ).toString(),
+            decimals,
+          };
+        } else {
+          // Fallback: use btcEquivalent (already in BTC units) as the collateral amount
+          depositParams = {
+            vTokenAddress,
+            collateralAmount: BigInt(
+              Math.floor(btcAmount * 10 ** decimals)
+            ).toString(),
+            decimals,
+          };
+        }
+      }
+
       try {
         const orderId = await runSwap({
           dstToken: "WBTC",
           amountBtc: btcAmount.toFixed(8),
           action: "borrow",
           destinationAsset: "WBTC",
+          depositParams,
         });
 
         if (!orderId) {
@@ -150,6 +207,7 @@ export function BorrowPage() {
             isSendingBtc={isSendingBtc}
             swapStep={step}
             depositPhase={depositPhase}
+            onSettled={handleBackendSettled}
           />
         </div>
       </div>

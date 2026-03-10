@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
+import { LOGOS } from "@/lib/constants";
 
 type SelectOption = {
   value: string;
   label: string;
+  iconUrl?: string;
 };
 
 interface ScrollableSelectProps {
@@ -13,6 +15,21 @@ interface ScrollableSelectProps {
   placeholder?: string;
   className?: string;
   disabled?: boolean;
+}
+
+function OptionContent({ option }: { option: SelectOption }) {
+  return (
+    <>
+      {option.iconUrl && (
+        <img
+          src={option.iconUrl}
+          alt=""
+          className="mr-2 h-4 w-4 shrink-0 rounded-full object-cover"
+        />
+      )}
+      {option.label}
+    </>
+  );
 }
 
 export default function ScrollableSelect({
@@ -62,12 +79,15 @@ export default function ScrollableSelect({
           disabled && "opacity-60 cursor-not-allowed"
         )}
       >
-        <span className={cn(!selected && "text-amplifi-muted")}>
-          {selected?.label ?? placeholder}
+        <span className={cn("flex items-center", !selected && "text-amplifi-muted")}>
+          {selected ? <OptionContent option={selected} /> : placeholder}
         </span>
-        <span className="ml-2 text-xs text-amplifi-muted">
-          {isOpen ? "▲" : "▼"}
-        </span>
+        <img
+          src={LOGOS.dropdown}
+          alt=""
+          className={cn("ml-2 h-4 w-4 shrink-0 transition-transform", isOpen && "rotate-180")}
+          aria-hidden
+        />
       </button>
 
       {isOpen && !disabled && (
@@ -86,12 +106,12 @@ export default function ScrollableSelect({
                   setIsOpen(false);
                 }}
                 className={cn(
-                  "w-full px-3 py-2.5 text-left text-sm font-medium transition-colors",
+                  "w-full px-3 py-2.5 text-left text-sm font-medium transition-colors flex items-center",
                   "hover:bg-amplifi-surface text-amplifi-text",
                   option.value === value && "bg-amplifi-best-offer text-amplifi-best-offer-text"
                 )}
               >
-                {option.label}
+                <OptionContent option={option} />
               </button>
             ))
           )}

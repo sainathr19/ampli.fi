@@ -10,6 +10,7 @@ import mempoolRoutes from "./routes/mempool.js";
 import { traceMiddleware } from "./middleware/trace.js";
 import { settings } from "./lib/settings.js";
 import { runMigrations } from "./db/migrate.js";
+import { getBridgeReconciler } from "./lib/bridge/index.js";
 
 const app = express();
 const PORT = settings.port;
@@ -32,6 +33,7 @@ app.use("/api/mempool", mempoolRoutes);
 
 async function start(): Promise<void> {
   await runMigrations();
+  getBridgeReconciler().start();
   app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
   });

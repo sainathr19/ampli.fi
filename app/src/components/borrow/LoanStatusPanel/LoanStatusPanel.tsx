@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getOrder, type BridgeOrder } from "@/lib/amplifi-api";
 import { LOGOS } from "@/lib/constants";
 
@@ -33,12 +33,12 @@ function swapStepToLoanStep(swapStep: string): number {
 }
 
 /** Maps backend order status to the loan progress step (1-based). */
-function statusToStep(status: string): number {
+function statusToStep(status: string, hasSupplyTx: boolean): number {
   const s = status?.toUpperCase?.() ?? "";
   if (s === "CREATED" || s === "SWAP_CREATED") return 1;
   if (s === "BTC_SENT") return 3;
   if (s === "BTC_CONFIRMED" || s === "CLAIMING") return 4;
-  if (s === "SETTLED") return 4;
+  if (s === "SETTLED") return hasSupplyTx ? 6 : 5;
   return 1;
 }
 
@@ -62,6 +62,8 @@ export interface LoanStatusPanelProps {
   swapStep?: string;
   /** Vesu collateral deposit phase. */
   depositPhase?: DepositPhase;
+  /** Fired once when backend polling detects SETTLED status. */
+  onSettled?: () => void;
 }
 
 export function LoanStatusPanel({
@@ -69,9 +71,15 @@ export function LoanStatusPanel({
   isSendingBtc,
   swapStep,
   depositPhase,
+  onSettled,
 }: LoanStatusPanelProps) {
   const [order, setOrder] = useState<BridgeOrder | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const settledFiredRef = useRef(false);
+
+  useEffect(() => {
+    settledFiredRef.current = false;
+  }, [orderId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -85,6 +93,14 @@ export function LoanStatusPanel({
         if (res.data) {
           setOrder(res.data);
           setError(res.data.lastError ?? null);
+          if (
+            res.data.status?.toUpperCase() === "SETTLED" &&
+            !settledFiredRef.current &&
+            onSettled
+          ) {
+            settledFiredRef.current = true;
+            onSettled();
+          }
         }
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "Failed to fetch status");
@@ -98,15 +114,21 @@ export function LoanStatusPanel({
       cancelled = true;
       clearTimeout(timeoutId);
     };
-  }, [orderId]);
+  }, [orderId, onSettled]);
 
   // Use frontend swap step for real-time progress; fall back to backend status
-  const backendStep = statusToStep(order?.status ?? "CREATED");
+  const hasSupplyTx = !!order?.supplyTxId;
+  const backendStep = statusToStep(order?.status ?? "CREATED", hasSupplyTx);
   const frontendStep = swapStep ? swapStepToLoanStep(swapStep) : 0;
   const depositStep = depositPhase ? depositStepToLoanStep(depositPhase) : 0;
   const activeStep = Math.max(backendStep, frontendStep, depositStep);
 
-  const isInProgress = isSendingBtc || depositPhase === "depositing";
+  const backendSettledAwaitingDeposit =
+    order?.status?.toUpperCase() === "SETTLED" &&
+    !hasSupplyTx &&
+    depositPhase !== "depositing" &&
+    depositPhase !== "done";
+  const isInProgress = isSendingBtc || depositPhase === "depositing" || backendSettledAwaitingDeposit;
 
   return (
     <div className="mb-6">

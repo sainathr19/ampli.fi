@@ -81,12 +81,39 @@ export function BorrowOfferPage() {
         return;
       }
 
+      const vTokenAddress = offer.item.data.collateral.vTokenAddress;
+      const quote = offer.item.data.quote;
+      const decimals = offer.item.data.collateral.decimals ?? 8;
+
+      let depositParams: { vTokenAddress: string; collateralAmount: string; decimals: number } | undefined;
+      if (vTokenAddress) {
+        const collateralAmount = quote?.requiredCollateralAmount;
+        if (collateralAmount != null && collateralAmount > 0) {
+          depositParams = {
+            vTokenAddress,
+            collateralAmount: BigInt(
+              Math.floor(collateralAmount * 10 ** decimals)
+            ).toString(),
+            decimals,
+          };
+        } else {
+          depositParams = {
+            vTokenAddress,
+            collateralAmount: BigInt(
+              Math.floor(btcAmount * 10 ** decimals)
+            ).toString(),
+            decimals,
+          };
+        }
+      }
+
       try {
         const orderId = await runSwap({
           dstToken: "WBTC",
           amountBtc: btcAmount.toFixed(8),
           action: "borrow",
           destinationAsset: "WBTC",
+          depositParams,
           onOrderCreated: (id) =>
             navigate(`/borrow/order/${id}`, {
               state: {

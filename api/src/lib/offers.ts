@@ -215,9 +215,11 @@ export function buildLoanOffersFromPools(
       const collateralPriceUsd = getUsdPrice(collateralAsset.raw);
       const borrowPriceUsd = getUsdPrice(debtAsset.raw);
 
-      const collateralVTokenAddress = asString(
-        (collateralAsset.raw as Record<string, unknown>).vTokenAddress
-      ) || null;
+      const rawVToken = (collateralAsset.raw as Record<string, unknown>).vToken;
+      const collateralVTokenAddress =
+        rawVToken && typeof rawVToken === "object"
+          ? asString((rawVToken as Record<string, unknown>).address) || null
+          : asString(rawVToken) || null;
 
       offers.push({
         offerId: `vesu:${poolId}:${collateralAsset.address}:${debtAsset.address}`,

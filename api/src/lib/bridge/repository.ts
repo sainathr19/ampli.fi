@@ -8,6 +8,7 @@ import {
   BridgeOrderAction,
   BridgeOrderPage,
   BridgeOrderStatus,
+  DepositParams,
 } from "./types.js";
 
 type BridgeOrderRow = {
@@ -29,6 +30,9 @@ type BridgeOrderRow = {
   source_tx_id: string | null;
   destination_tx_id: string | null;
   last_error: string | null;
+  deposit_params: unknown | null;
+  supply_tx_id: string | null;
+  borrow_tx_id: string | null;
   created_at: Date;
   updated_at: Date;
 };
@@ -37,6 +41,7 @@ export type BridgeRepository = {
   init(): Promise<void>;
   createOrder(input: BridgeCreateOrderInput): Promise<BridgeOrder>;
   getOrderById(id: string): Promise<BridgeOrder | null>;
+  listPendingOrders(statuses: BridgeOrderStatus[]): Promise<BridgeOrder[]>;
   listOrdersByWallet(walletAddress: string, page: number, limit: number, action?: BridgeOrderAction): Promise<BridgeOrderPage>;
   updateOrder(
     id: string,
@@ -49,6 +54,8 @@ export type BridgeRepository = {
       amountSource: string | null;
       amountDestination: string | null;
       depositAddress: string | null;
+      supplyTxId: string | null;
+      borrowTxId: string | null;
     }>
   ): Promise<BridgeOrder>;
 };
@@ -73,6 +80,9 @@ function toOrder(row: BridgeOrderRow): BridgeOrder {
     sourceTxId: row.source_tx_id,
     destinationTxId: row.destination_tx_id,
     lastError: row.last_error,
+    depositParams: row.deposit_params ? (row.deposit_params as DepositParams) : null,
+    supplyTxId: row.supply_tx_id,
+    borrowTxId: row.borrow_tx_id,
     createdAt: row.created_at.toISOString(),
     updatedAt: row.updated_at.toISOString(),
   };
@@ -103,9 +113,9 @@ export class PgBridgeRepository implements BridgeRepository {
       `
       INSERT INTO bridge_orders (
         id, network, source_asset, destination_asset, amount, amount_type,
-        receive_address, wallet_address, bitcoin_address, status, action
+        receive_address, wallet_address, bitcoin_address, status, action, deposit_params
       )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
       RETURNING *
       `,
       [
@@ -120,6 +130,7 @@ export class PgBridgeRepository implements BridgeRepository {
         input.bitcoinAddress,
         "CREATED",
         input.action,
+        input.depositParams ? JSON.stringify(input.depositParams) : null,
       ]
     );
     return toOrder(result.rows[0]);
@@ -128,6 +139,16 @@ export class PgBridgeRepository implements BridgeRepository {
   async getOrderById(id: string): Promise<BridgeOrder | null> {
     const result = await this.pool.query<BridgeOrderRow>("SELECT * FROM bridge_orders WHERE id = $1 LIMIT 1", [id]);
     return result.rowCount ? toOrder(result.rows[0]) : null;
+  }
+
+  async listPendingOrders(statuses: BridgeOrderStatus[]): Promise<BridgeOrder[]> {
+    if (statuses.length === 0) return [];
+    const placeholders = statuses.map((_, i) => `$${i + 1}`).join(", ");
+    const result = await this.pool.query<BridgeOrderRow>(
+      `SELECT * FROM bridge_orders WHERE status IN (${placeholders}) ORDER BY updated_at ASC LIMIT 100`,
+      statuses
+    );
+    return result.rows.map(toOrder);
   }
 
   async listOrdersByWallet(walletAddress: string, page: number, limit: number, action?: BridgeOrderAction): Promise<BridgeOrderPage> {
@@ -174,6 +195,8 @@ export class PgBridgeRepository implements BridgeRepository {
       amountSource: string | null;
       amountDestination: string | null;
       depositAddress: string | null;
+      supplyTxId: string | null;
+      borrowTxId: string | null;
     }>
   ): Promise<BridgeOrder> {
     const current = await this.getOrderById(id);
@@ -190,6 +213,8 @@ export class PgBridgeRepository implements BridgeRepository {
       amountSource: patch.amountSource ?? current.amountSource,
       amountDestination: patch.amountDestination ?? current.amountDestination,
       depositAddress: patch.depositAddress ?? current.depositAddress,
+      supplyTxId: patch.supplyTxId ?? current.supplyTxId,
+      borrowTxId: patch.borrowTxId ?? current.borrowTxId,
     };
 
     const result = await this.pool.query<BridgeOrderRow>(
@@ -204,6 +229,8 @@ export class PgBridgeRepository implements BridgeRepository {
         amount_source = $7,
         amount_destination = $8,
         deposit_address = $9,
+        supply_tx_id = $10,
+        borrow_tx_id = $11,
         updated_at = NOW()
       WHERE id = $1
       RETURNING *
@@ -218,6 +245,8 @@ export class PgBridgeRepository implements BridgeRepository {
         next.amountSource,
         next.amountDestination,
         next.depositAddress,
+        next.supplyTxId,
+        next.borrowTxId,
       ]
     );
 

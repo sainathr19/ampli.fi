@@ -85,6 +85,18 @@ export function validateCreateOrderPayload(payload: unknown): BridgeCreateOrderI
 
   const bitcoinAddress = body.bitcoinAddress ? asString(body.bitcoinAddress).trim() : null;
 
+  let depositParams: BridgeCreateOrderInput["depositParams"] = null;
+  if (body.depositParams && typeof body.depositParams === "object") {
+    const dp = body.depositParams as Record<string, unknown>;
+    const vTokenAddress = asString(dp.vTokenAddress).trim();
+    const collateralAmount = asString(dp.collateralAmount).trim();
+    const decimals = Number(dp.decimals);
+    if (!vTokenAddress) throw new Error("depositParams.vTokenAddress is required");
+    if (!collateralAmount) throw new Error("depositParams.collateralAmount is required");
+    if (!Number.isInteger(decimals) || decimals < 0) throw new Error("depositParams.decimals must be a non-negative integer");
+    depositParams = { vTokenAddress, collateralAmount, decimals };
+  }
+
   return {
     network: settings.network,
     sourceAsset: "BTC",
@@ -95,5 +107,6 @@ export function validateCreateOrderPayload(payload: unknown): BridgeCreateOrderI
     walletAddress,
     bitcoinAddress,
     action: body.action ? validateAction(body.action) : "swap",
+    depositParams,
   };
 }

@@ -15,6 +15,12 @@ export type BridgeAmountType = "exactIn" | "exactOut";
 
 export type BridgeOrderAction = "swap" | "borrow" | "stake";
 
+export type DepositParams = {
+  vTokenAddress: string;
+  collateralAmount: string;
+  decimals: number;
+};
+
 export type BridgeCreateOrderInput = {
   network: BridgeNetwork;
   sourceAsset: "BTC";
@@ -25,6 +31,7 @@ export type BridgeCreateOrderInput = {
   walletAddress: string;
   bitcoinAddress: string | null;
   action: BridgeOrderAction;
+  depositParams?: DepositParams | null;
 };
 
 export type BridgeOrder = {
@@ -46,6 +53,9 @@ export type BridgeOrder = {
   sourceTxId: string | null;
   destinationTxId: string | null;
   lastError: string | null;
+  depositParams: DepositParams | null;
+  supplyTxId: string | null;
+  borrowTxId: string | null;
   createdAt: string;
   updatedAt: string;
 };

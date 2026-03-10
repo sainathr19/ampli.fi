@@ -53,6 +53,7 @@ export interface UseAtomiqSwapResult {
     amountBtc: string;
     action?: "swap" | "borrow" | "stake";
     destinationAsset?: string;
+    depositParams?: { vTokenAddress: string; collateralAmount: string; decimals: number };
     /** Called immediately when order is created (before BTC send). Use to navigate to order status page. */
     onOrderCreated?: (orderId: string) => void;
   }) => Promise<string | null>;
@@ -119,6 +120,7 @@ export function useAtomiqSwap(): UseAtomiqSwapResult {
       amountBtc: string;
       action?: "swap" | "borrow" | "stake";
       destinationAsset?: string;
+      depositParams?: { vTokenAddress: string; collateralAmount: string; decimals: number };
       onOrderCreated?: (orderId: string) => void;
     }): Promise<string | null> => {
       if (!connected || !bitcoinPaymentAddress || !starknetAddress || !bitcoinWalletInstance || !starknetSigner) {
@@ -152,6 +154,7 @@ export function useAtomiqSwap(): UseAtomiqSwapResult {
           walletAddress: starknetAddress,
           bitcoinAddress: bitcoinPaymentAddress,
           action,
+          ...(params.depositParams ? { depositParams: params.depositParams } : {}),
         });
         orderId = orderResp.data.orderId;
         setLastOrderId(orderId);
@@ -202,7 +205,7 @@ export function useAtomiqSwap(): UseAtomiqSwapResult {
         // Step 4: Wait for BTC confirmation
         setStep("confirming_btc");
         log("Waiting for BTC confirmation...");
-        await waitForBtcConfirmation(handle, 1, (txId, current, target, etaMs) => {
+        await waitForBtcConfirmation(handle, 2, (txId, current, target, etaMs) => {
           log(`  ${txId} (${current}/${target}) ETA: ${Math.floor(etaMs / 1000)}s`);
         });
         log("BTC confirmed!");

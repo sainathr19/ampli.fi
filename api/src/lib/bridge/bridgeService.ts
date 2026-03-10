@@ -95,6 +95,18 @@ export class BridgeService {
     });
   }
 
+  async linkSupplyTx(orderId: string, supplyTxId: string): Promise<BridgeOrder> {
+    const order = await this.requireOrder(orderId);
+    log.info("bridge linkSupplyTx", { orderId, supplyTxId });
+    return this.repository.updateOrder(order.id, { supplyTxId });
+  }
+
+  async linkBorrowTx(orderId: string, borrowTxId: string): Promise<BridgeOrder> {
+    const order = await this.requireOrder(orderId);
+    log.info("bridge linkBorrowTx", { orderId, borrowTxId });
+    return this.repository.updateOrder(order.id, { borrowTxId });
+  }
+
   private async requireOrder(orderId: string): Promise<BridgeOrder> {
     const order = await this.repository.getOrderById(orderId);
     if (!order) {

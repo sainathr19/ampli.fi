@@ -1,7 +1,6 @@
 import { Request, Response, Router } from "express";
 import { log } from "../lib/logger.js";
-import { BridgeService } from "../lib/bridge/bridgeService.js";
-import { PgBridgeRepository } from "../lib/bridge/repository.js";
+import { getBridgeService } from "../lib/bridge/index.js";
 import {
   normalizeWalletAddress,
   validateAction,
@@ -10,17 +9,8 @@ import {
   validateStatus,
 } from "../lib/bridge/validation.js";
 
-let servicePromise: Promise<BridgeService> | null = null;
-
-async function getService(): Promise<BridgeService> {
-  if (servicePromise) return servicePromise;
-  servicePromise = (async () => {
-    const repository = PgBridgeRepository.fromSettings();
-    const service = new BridgeService(repository);
-    await service.init();
-    return service;
-  })();
-  return servicePromise;
+async function getService() {
+  return getBridgeService();
 }
 
 function isBadRequestMessage(message: string): boolean {
@@ -140,6 +130,36 @@ router.patch("/orders/:id/status", async (req: Request, res: Response) => {
       destinationTxId: body.destinationTxId ? String(body.destinationTxId) : undefined,
       lastError: body.lastError ? String(body.lastError) : undefined,
     });
+    return res.json({ data: order });
+  } catch (error: unknown) {
+    return handleRouteError(res, error);
+  }
+});
+
+// Link supply transaction hash (Vesu collateral deposit)
+router.patch("/orders/:id/supply-tx", async (req: Request, res: Response) => {
+  try {
+    const orderId = req.params.id?.trim();
+    if (!orderId) return res.status(400).json({ error: "order id is required" });
+    const supplyTxId = String((req.body as Record<string, unknown>)?.supplyTxId ?? "").trim();
+    if (!supplyTxId) return res.status(400).json({ error: "supplyTxId is required" });
+    const service = await getService();
+    const order = await service.linkSupplyTx(orderId, supplyTxId);
+    return res.json({ data: order });
+  } catch (error: unknown) {
+    return handleRouteError(res, error);
+  }
+});
+
+// Link borrow transaction hash (Vesu borrow execution)
+router.patch("/orders/:id/borrow-tx", async (req: Request, res: Response) => {
+  try {
+    const orderId = req.params.id?.trim();
+    if (!orderId) return res.status(400).json({ error: "order id is required" });
+    const borrowTxId = String((req.body as Record<string, unknown>)?.borrowTxId ?? "").trim();
+    if (!borrowTxId) return res.status(400).json({ error: "borrowTxId is required" });
+    const service = await getService();
+    const order = await service.linkBorrowTx(orderId, borrowTxId);
     return res.json({ data: order });
   } catch (error: unknown) {
     return handleRouteError(res, error);

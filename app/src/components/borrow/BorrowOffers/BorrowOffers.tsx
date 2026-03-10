@@ -26,6 +26,7 @@ export interface BorrowOffersProps {
   isSendingBtc?: boolean;
   swapStep?: string;
   depositPhase?: string;
+  onSettled?: () => void;
 }
 
 export function BorrowOffers({
@@ -37,6 +38,7 @@ export function BorrowOffers({
   isSendingBtc,
   swapStep,
   depositPhase,
+  onSettled,
 }: BorrowOffersProps) {
   const [offers, setOffers] = useState<LoanOfferItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -85,6 +87,7 @@ export function BorrowOffers({
               orderId={loanFlow.orderId}
               isSendingBtc={isSendingBtc}
               depositPhase={depositPhase as DepositPhase}
+              onSettled={onSettled}
             />
           )}
           <p className="text-sm text-amplifi-muted">No offer selected.</p>
@@ -114,6 +117,7 @@ export function BorrowOffers({
             isSendingBtc={isSendingBtc}
             swapStep={swapStep}
             depositPhase={depositPhase as DepositPhase}
+            onSettled={onSettled}
           />
         )}
         <p className="mb-6 flex items-center gap-2 text-base text-amplifi-text">
