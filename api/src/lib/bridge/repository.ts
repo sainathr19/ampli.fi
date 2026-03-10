@@ -1,6 +1,7 @@
 import { Pool } from "pg";
 import { randomUUID } from "node:crypto";
 import { settings } from "../settings.js";
+import { log } from "../logger.js";
 import {
   BridgeActionStatus,
   BridgeActionType,
@@ -108,7 +109,15 @@ function toOrder(row: BridgeOrderRow): BridgeOrder {
 }
 
 export class PgBridgeRepository implements BridgeRepository {
-  constructor(private readonly pool: Pool) {}
+  constructor(private readonly pool: Pool) {
+    if (typeof this.pool.on === "function") {
+      this.pool.on("error", (error: Error) => {
+        log.error("bridge repository postgres pool error", {
+          error: error.message,
+        });
+      });
+    }
+  }
 
   static fromSettings(): PgBridgeRepository {
     return new PgBridgeRepository(new Pool({ connectionString: settings.database_url }));

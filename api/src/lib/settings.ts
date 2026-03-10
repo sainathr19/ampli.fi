@@ -18,6 +18,7 @@ const SettingsSchema = z
     privy_app_secret: z.string().min(1, "privy_app_secret is required"),
     database_url: z.string().min(1, "database_url is required"),
     bridge_recovery_interval_ms: z.number().int().positive(),
+    bridge_psbt_skip_taproot_validation: z.boolean().optional(),
   })
   .passthrough();
 

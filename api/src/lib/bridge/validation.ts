@@ -63,6 +63,31 @@ export function validateStarknetReceiveAddress(value: unknown): string {
   }
 }
 
+export function validateBitcoinAddress(value: unknown): string {
+  const normalized = asString(value).trim();
+  if (!normalized) {
+    throw new Error("bitcoinPaymentAddress is required");
+  }
+  if (!/^(bc1|tb1|[13]|[mn2])[a-zA-Z0-9]{20,}$/i.test(normalized)) {
+    throw new Error("bitcoinPaymentAddress must be a valid Bitcoin address");
+  }
+  return normalized;
+}
+
+export function validateBitcoinPublicKey(value: unknown): string {
+  const normalized = asString(value).trim();
+  if (!normalized) {
+    throw new Error("bitcoinPublicKey is required");
+  }
+  if (!/^[0-9a-fA-F]+$/.test(normalized)) {
+    throw new Error("bitcoinPublicKey must be a hex string");
+  }
+  if (normalized.length !== 66 && normalized.length !== 130) {
+    throw new Error("bitcoinPublicKey must be a 33-byte or 65-byte hex public key");
+  }
+  return normalized;
+}
+
 export function validateCreateOrderPayload(payload: unknown): BridgeCreateOrderInput {
   const body = (payload ?? {}) as Record<string, unknown>;
   const sourceAsset = asString(body.sourceAsset).trim().toUpperCase();
@@ -75,6 +100,19 @@ export function validateCreateOrderPayload(payload: unknown): BridgeCreateOrderI
     throw new Error("walletAddress is required");
   }
 
+  const hasBitcoinPaymentAddress = body.bitcoinPaymentAddress != null;
+  const hasBitcoinPublicKey = body.bitcoinPublicKey != null;
+  if (hasBitcoinPaymentAddress !== hasBitcoinPublicKey) {
+    throw new Error("bitcoinPaymentAddress and bitcoinPublicKey must be provided together");
+  }
+
+  const bitcoinPaymentAddress = hasBitcoinPaymentAddress
+    ? validateBitcoinAddress(body.bitcoinPaymentAddress)
+    : undefined;
+  const bitcoinPublicKey = hasBitcoinPublicKey
+    ? validateBitcoinPublicKey(body.bitcoinPublicKey)
+    : undefined;
+
   return {
     network: settings.network,
     sourceAsset: "BTC",
@@ -83,5 +121,7 @@ export function validateCreateOrderPayload(payload: unknown): BridgeCreateOrderI
     amountType: validateAmountType(body.amountType),
     receiveAddress: validateStarknetReceiveAddress(body.receiveAddress),
     walletAddress,
+    bitcoinPaymentAddress,
+    bitcoinPublicKey,
   };
 }

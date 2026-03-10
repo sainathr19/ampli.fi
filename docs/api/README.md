@@ -374,7 +374,9 @@ Request body:
   "amount": "10000000",
   "amountType": "exactIn",
   "receiveAddress": "0x0123...starknet",
-  "walletAddress": "0xabc..."
+  "walletAddress": "0xabc...",
+  "bitcoinPaymentAddress": "tb1q...",
+  "bitcoinPublicKey": "03a2..."
 }
 ```
 
@@ -385,6 +387,7 @@ Validation:
 - `amount`: base units as string (e.g. `"10000000"` for 0.1 BTC, 1 BTC = 100_000_000). For `exactIn`: source token base units. For `exactOut`: destination token base units. DB stores base units; only Atomiq SDK receives decimal conversion.
 - `amountType`: `exactIn | exactOut`
 - `receiveAddress`: validated with `starknet.js` (`validateAndParseAddress`)
+- `bitcoinPaymentAddress` and `bitcoinPublicKey`: optional, but must be provided together for Option A (FUNDED_PSBT path)
 
 Notes:
 
@@ -392,6 +395,7 @@ Notes:
 - Active bridge network is server-configured in `api/Settings.toml` via:
   - `network = "mainnet" | "testnet"`
   - `rpc_url = "<starknet-rpc-url>"`
+- For full payment flow details, see [Bridge Flow](../BRIDGE_FLOW.md).
 
 Response:
 
@@ -428,8 +432,9 @@ Response:
 - `amountSats`: Amount to send in satoshis.
 - `payment`: Normalized Bitcoin payment instructions from Atomiq.
   - `type = "ADDRESS"`: send BTC directly to `address` (optional `hyperlink` can be used as QR payload).
-  - `type = "FUNDED_PSBT"`: sign `psbtHex` or `psbtBase64` with your Bitcoin wallet and sign only `signInputs`, then submit via Atomiq flow.
-  - `type = "RAW_PSBT"`: construct/sign from raw PSBT (uses `in1sequence` rules from Atomiq docs) and submit via Atomiq flow.
+  - `type = "FUNDED_PSBT"`: sign `psbtHex` or `psbtBase64` with your Bitcoin wallet and sign only `signInputs`, then submit signed PSBT via `POST /api/bridge/orders/:id/submit-psbt`. Taproot inputs must include `tapInternalKey`/`tapBip32Derivation` (validated server-side).
+  - `type = "RAW_PSBT"`: construct/sign from raw PSBT (uses `in1sequence` rules from Atomiq docs) and submit signed PSBT via `POST /api/bridge/orders/:id/submit-psbt`. Taproot validation is skipped for RAW_PSBT (wallet may add metadata).
+- **Bypass**: Set `BRIDGE_PSBT_SKIP_TAPROOT_VALIDATION=1` or `bridge_psbt_skip_taproot_validation = true` in Settings.toml to allow FUNDED_PSBT with incomplete Taproot metadata (signing may still fail in wallet).
 - `quote.amountIn` and `quote.amountOut`: also returned in base units (same convention as `amount`).
 
 ### `GET /api/bridge/orders/:id`
@@ -448,6 +453,28 @@ Wallet-based order history (paginated). Address lookup is normalized to lowercas
 
 Manually trigger reconcile/recovery for an order.
 
+### `POST /api/bridge/orders/:id/submit-psbt`
+
+Submit a signed PSBT for FUNDED_PSBT or RAW_PSBT payment flows.
+
+Request body:
+
+```json
+{
+  "signedPsbt": "cHNidP8BA..."
+}
+```
+
+Response:
+
+```json
+{
+  "data": {
+    "txId": "btc-tx-id"
+  }
+}
+```
+
 ## Bridge Recovery
 
 The backend runs a periodic poller that:
@@ -457,13 +484,17 @@ The backend runs a periodic poller that:
 - Auto-refunds when swap becomes refundable
 - Logs actions/events in `bridge_actions` and `bridge_events`
 
-No submit step is required. After the user broadcasts the BTC tx, Atomiq detects it and the poller reconciles the order.
+For `ADDRESS` payments, no PSBT submit step is required. For `FUNDED_PSBT` and `RAW_PSBT`, frontend should submit signed PSBT to `POST /api/bridge/orders/:id/submit-psbt`.
 
 ## Frontend Flow
 
-1. Create order (`POST /orders`) – response includes `depositAddress` and `amountSats`
-2. Send exactly `amountSats` satoshis to `depositAddress` in a single BTC transaction (broadcast from any wallet)
-3. Poll status (`GET /orders/:id`) or use history (`GET /orders`) – the recovery poller detects when Atomiq sees the tx and updates the order
+1. Create order (`POST /orders`) with standard fields and optional `bitcoinPaymentAddress` + `bitcoinPublicKey` for Option A.
+2. Handle payment by `payment.type`:
+   - `ADDRESS`: send exact sats to deposit address.
+   - `FUNDED_PSBT` / `RAW_PSBT`: sign PSBT in frontend wallet and call `POST /orders/:id/submit-psbt`.
+3. Poll status (`GET /orders/:id`) or use history (`GET /orders`) while backend poller reconciles the swap.
+
+See full flow details in [Bridge Flow](../BRIDGE_FLOW.md).
 
 ## Wallet Endpoints (write / non-read-only)
 

@@ -5,12 +5,18 @@
 
 import { Pool } from "pg";
 import { settings } from "../settings.js";
+import { log } from "../logger.js";
 
 let sharedPool: Pool | null = null;
 
 function getPool(): Pool {
   if (!sharedPool) {
     sharedPool = new Pool({ connectionString: settings.database_url });
+    sharedPool.on("error", (error: Error) => {
+      log.error("bridge storage postgres pool error", {
+        error: error.message,
+      });
+    });
   }
   return sharedPool;
 }

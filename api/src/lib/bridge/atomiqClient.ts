@@ -1,5 +1,6 @@
 import { BitcoinNetwork, SwapAmountType, SwapperFactory } from "@atomiqlabs/sdk";
 import { StarknetInitializer } from "@atomiqlabs/chain-starknet";
+import { Psbt } from "bitcoinjs-lib";
 import { RpcProvider } from "starknet";
 import { log } from "../logger.js";
 import { BridgeAmountType, BridgeNetwork, BridgeOrder } from "./types.js";
@@ -23,6 +24,7 @@ type AtomiqSwapLike = {
   getInputTxId?: () => string | null;
   getOutputTxId?: () => string | null;
   txsExecute?: (options?: Record<string, unknown>) => Promise<unknown>;
+  submitPsbt?: (signedPsbt: string) => Promise<string>;
   claim?: (...args: unknown[]) => Promise<string>;
   refund?: (...args: unknown[]) => Promise<string>;
   isClaimable?: () => boolean;
@@ -36,6 +38,8 @@ type CreateIncomingSwapInput = {
   amount: string;
   amountType: BridgeAmountType;
   receiveAddress: string;
+  bitcoinPaymentAddress?: string;
+  bitcoinPublicKey?: string;
 };
 
 type CreateIncomingSwapResult = {
@@ -76,6 +80,135 @@ type AtomiqOrderSnapshot = {
   isClaimable: boolean;
   isRefundable: boolean;
 };
+
+type PsbtInputMeta = {
+  isTaprootInput: boolean;
+  hasTapInternalKey: boolean;
+  hasTapBip32Derivation: boolean;
+};
+
+function isTaprootScriptPubKey(scriptPubKey: Buffer): boolean {
+  return (
+    scriptPubKey.length === 34 &&
+    scriptPubKey[0] === 0x51 &&
+    scriptPubKey[1] === 0x20
+  );
+}
+
+function toBuffer(value: Uint8Array | Buffer | undefined): Buffer | null {
+  if (!value) return null;
+  return Buffer.from(value);
+}
+
+function parsePsbt(psbtHex: string | null, psbtBase64: string | null): Psbt {
+  if (psbtHex) {
+    const normalizedHex = psbtHex.trim();
+    if (!/^[0-9a-fA-F]+$/.test(normalizedHex) || normalizedHex.length % 2 !== 0) {
+      throw new Error("psbtHex is not valid hex");
+    }
+    return Psbt.fromHex(normalizedHex);
+  }
+  if (psbtBase64) {
+    const normalizedBase64 = psbtBase64.trim();
+    if (!normalizedBase64) {
+      throw new Error("psbtBase64 is empty");
+    }
+    return Psbt.fromBase64(normalizedBase64);
+  }
+  throw new Error("missing psbtHex/psbtBase64");
+}
+
+function parsePsbtInputMetadata(psbt: Psbt): PsbtInputMeta[] {
+  return psbt.data.inputs.map((input) => {
+    const tapInternalKey = toBuffer(input.tapInternalKey as Uint8Array | Buffer | undefined);
+    const hasTapInternalKey = Boolean(tapInternalKey && tapInternalKey.length > 0);
+    const hasTapBip32Derivation =
+      Array.isArray(input.tapBip32Derivation) && input.tapBip32Derivation.length > 0;
+    const witnessScript = toBuffer(input.witnessUtxo?.script as Uint8Array | Buffer | undefined);
+    const isTaprootWitnessUtxo = Boolean(witnessScript && isTaprootScriptPubKey(witnessScript));
+    const hasTaprootOnlyFields =
+      hasTapInternalKey ||
+      hasTapBip32Derivation ||
+      Boolean(input.tapMerkleRoot) ||
+      Boolean(input.tapKeySig) ||
+      (Array.isArray(input.tapLeafScript) && input.tapLeafScript.length > 0) ||
+      (Array.isArray(input.tapScriptSig) && input.tapScriptSig.length > 0);
+
+    return {
+      isTaprootInput: isTaprootWitnessUtxo || hasTaprootOnlyFields,
+      hasTapInternalKey,
+      hasTapBip32Derivation,
+    };
+  });
+}
+
+const TAPROOT_VALIDATION_BYPASS_ENV = "BRIDGE_PSBT_SKIP_TAPROOT_VALIDATION";
+
+function validatePsbtPaymentDetails(payment: BitcoinPaymentDetails): void {
+  if (payment.type === "ADDRESS") return;
+  let psbt: Psbt;
+  try {
+    psbt = parsePsbt(payment.psbtHex, payment.psbtBase64);
+  } catch {
+    throw new Error("invalid PSBT payload");
+  }
+  const metadata = parsePsbtInputMetadata(psbt);
+  if (payment.type === "FUNDED_PSBT" && payment.signInputs.length === 0) {
+    throw new Error("FUNDED_PSBT requires at least one sign input index");
+  }
+
+  const targetIndexes =
+    payment.type === "FUNDED_PSBT" ? payment.signInputs : metadata.map((_, index) => index);
+  const outOfRange = targetIndexes.filter((index) => index < 0 || index >= metadata.length);
+  if (outOfRange.length > 0) {
+    throw new Error(`signInputs out of range for PSBT inputs: ${outOfRange.join(",")}`);
+  }
+
+  const skipTaprootValidation =
+    process.env[TAPROOT_VALIDATION_BYPASS_ENV] === "1" ||
+    (settings as Record<string, unknown>).bridge_psbt_skip_taproot_validation === true;
+
+  if (payment.type === "RAW_PSBT") {
+    return;
+  }
+
+  const missingTaprootMetadata = targetIndexes.filter((index) => {
+    const input = metadata[index];
+    return (
+      input?.isTaprootInput &&
+      !input.hasTapInternalKey &&
+      !input.hasTapBip32Derivation
+    );
+  });
+  if (missingTaprootMetadata.length > 0) {
+    if (skipTaprootValidation) {
+      log.warn("bridge PSBT Taproot validation bypassed", {
+        paymentType: payment.type,
+        missingInputs: missingTaprootMetadata.join(","),
+        hint: "Signing may fail in wallet. Ask Atomiq to populate tapInternalKey and tapBip32Derivation.",
+      });
+      return;
+    }
+    const bypassHint = `Set ${TAPROOT_VALIDATION_BYPASS_ENV}=1 to allow (signing may still fail). `;
+    throw new Error(
+      `Taproot inputs missing tapInternalKey/tapBip32Derivation: ${missingTaprootMetadata.join(",")}. ` +
+        bypassHint +
+        "For Taproot key-path spending, the PSBT constructor (Atomiq/LP) must call psbt.updateInput(inputIndex, { tapInternalKey, tapBip32Derivation })."
+    );
+  }
+}
+
+function validateSignedPsbtForSubmission(signedPsbt: string): void {
+  try {
+    parsePsbt(signedPsbt, null);
+  } catch {
+    try {
+      parsePsbt(null, signedPsbt);
+    } catch {
+      throw new Error("signedPsbt must be a valid PSBT in hex or base64 format");
+    }
+  }
+}
 
 function getAmountLike(value: unknown): string | null {
   if (!value || typeof value !== "object") return null;
@@ -329,6 +462,7 @@ async function resolveDepositAddressFromSwapMethods(swap: AtomiqSwapLike): Promi
 export interface AtomiqClient {
   createIncomingSwap(input: CreateIncomingSwapInput): Promise<CreateIncomingSwapResult>;
   getOrderSnapshot(order: BridgeOrder): Promise<AtomiqOrderSnapshot>;
+  submitPsbt(order: BridgeOrder, signedPsbt: string): Promise<string>;
   tryClaim(order: BridgeOrder): Promise<{ success: boolean; txId?: string }>;
   tryRefund(order: BridgeOrder): Promise<{ success: boolean; txId?: string }>;
 }
@@ -384,6 +518,7 @@ export class AtomiqSdkClient implements AtomiqClient {
       destinationAsset: input.destinationAsset,
       amount: input.amount,
       receiveAddress: input.receiveAddress,
+      hasBitcoinWalletData: Boolean(input.bitcoinPaymentAddress && input.bitcoinPublicKey),
     });
     const swapper = await this.getSwapper(input.network);
     const amountType = input.amountType === "exactOut" ? SwapAmountType.EXACT_OUT : SwapAmountType.EXACT_IN;
@@ -424,9 +559,19 @@ export class AtomiqSdkClient implements AtomiqClient {
     let txsExecuteRaw: unknown = null;
     if (swap.txsExecute) {
       try {
-        txsExecuteRaw = await swap.txsExecute();
+        const txsExecuteOptions =
+          input.bitcoinPaymentAddress && input.bitcoinPublicKey
+            ? {
+                bitcoinWallet: {
+                  address: input.bitcoinPaymentAddress,
+                  publicKey: input.bitcoinPublicKey,
+                },
+              }
+            : undefined;
+        txsExecuteRaw = await swap.txsExecute(txsExecuteOptions);
         log.debug("atomiq txsExecute returned", {
           isArray: Array.isArray(txsExecuteRaw),
+          usedBitcoinWalletData: Boolean(txsExecuteOptions?.bitcoinWallet),
           topLevelKeys:
             txsExecuteRaw && typeof txsExecuteRaw === "object"
               ? Object.keys(txsExecuteRaw as Record<string, unknown>).slice(0, 10)
@@ -435,10 +580,38 @@ export class AtomiqSdkClient implements AtomiqClient {
       } catch (error: unknown) {
         const msg = error instanceof Error ? error.message : String(error);
         log.warn("atomiq txsExecute failed while creating swap", { error: msg });
+        if (input.bitcoinPaymentAddress && input.bitcoinPublicKey) {
+          try {
+            // Option A failed (e.g. "Not enough balance!"), fallback to raw payment instructions.
+            txsExecuteRaw = await swap.txsExecute();
+            log.warn("atomiq txsExecute fallback to non-wallet execution succeeded", {
+              reason: msg,
+            });
+          } catch (fallbackError: unknown) {
+            const fallbackMsg =
+              fallbackError instanceof Error ? fallbackError.message : String(fallbackError);
+            throw new Error(
+              `Unable to generate BTC payment instructions: wallet funding failed (${msg}); fallback failed (${fallbackMsg})`
+            );
+          }
+        }
       }
     }
     const deposit = parseDepositFromTxsExecute(txsExecuteRaw);
     const bitcoinPayment = parseBitcoinPaymentFromTxsExecute(txsExecuteRaw);
+    if (bitcoinPayment) {
+      try {
+        validatePsbtPaymentDetails(bitcoinPayment);
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
+        log.error("atomiq createIncomingSwap invalid bitcoin payment", {
+          atomiqSwapId,
+          paymentType: bitcoinPayment.type,
+          error: message,
+        });
+        throw new Error(`Invalid ${bitcoinPayment.type} from bridge provider: ${message}`);
+      }
+    }
     const fallbackDepositAddress =
       normalizeString(swap.getAddress?.()) ??
       (await resolveDepositAddressFromSwapMethods(swap)) ??
@@ -449,6 +622,11 @@ export class AtomiqSdkClient implements AtomiqClient {
     const paymentAmountSats = bitcoinPayment?.type === "ADDRESS" ? bitcoinPayment.amountSats : null;
     const resolvedAmountSats = paymentAmountSats ?? deposit.amountSats ?? input.amount;
     if (!resolvedDepositAddress) {
+      if (!bitcoinPayment) {
+        throw new Error(
+          "Unable to generate BTC payment instructions from bridge provider; neither bitcoinPayment nor depositAddress was returned"
+        );
+      }
       log.warn("atomiq createIncomingSwap missing depositAddress", {
         atomiqSwapId,
         hasTxsExecuteRaw: txsExecuteRaw != null,
@@ -512,6 +690,22 @@ export class AtomiqSdkClient implements AtomiqClient {
       isClaimable: swap.isClaimable?.() ?? false,
       isRefundable: swap.isRefundable?.() ?? false,
     };
+  }
+
+  async submitPsbt(order: BridgeOrder, signedPsbt: string): Promise<string> {
+    const normalizedPsbt = signedPsbt.trim();
+    if (!normalizedPsbt) {
+      throw new Error("signedPsbt is required");
+    }
+    validateSignedPsbtForSubmission(normalizedPsbt);
+    const swap = await this.getSwap(order);
+    if (!swap.submitPsbt) {
+      throw new Error("Atomiq swap does not support submitPsbt");
+    }
+    log.info("atomiq submitPsbt start", { orderId: order.id });
+    const txId = await swap.submitPsbt(normalizedPsbt);
+    log.info("atomiq submitPsbt success", { orderId: order.id, txId });
+    return txId;
   }
 
   async tryClaim(order: BridgeOrder): Promise<{ success: boolean; txId?: string }> {

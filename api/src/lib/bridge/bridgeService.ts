@@ -65,6 +65,8 @@ export class BridgeService {
       amount: input.amount,
       amountType: input.amountType,
       receiveAddress: input.receiveAddress,
+      bitcoinPaymentAddress: input.bitcoinPaymentAddress,
+      bitcoinPublicKey: input.bitcoinPublicKey,
     });
 
     const order = await this.repository.createOrder({
@@ -110,6 +112,11 @@ export class BridgeService {
     const result = await this.reconcileOrder(order.id);
     log.info("bridge retryOrder success", { orderId, status: result.status });
     return result;
+  }
+
+  async submitPsbt(orderId: string, signedPsbt: string): Promise<string> {
+    const order = await this.requireOrder(orderId);
+    return this.atomiqClient.submitPsbt(order, signedPsbt);
   }
 
   async reconcileActiveOrders(): Promise<void> {

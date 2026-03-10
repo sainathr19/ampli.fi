@@ -33,6 +33,8 @@ export type BridgeCreateOrderInput = {
   amountType: BridgeAmountType;
   receiveAddress: string;
   walletAddress: string;
+  bitcoinPaymentAddress?: string;
+  bitcoinPublicKey?: string;
 };
 
 export type BridgeOrder = {

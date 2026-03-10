@@ -52,7 +52,7 @@ function handleRouteError(res: Response, error: unknown): Response {
 
 type BridgeServiceLike = Pick<
   BridgeService,
-  "createOrder" | "getOrder" | "listOrders" | "retryOrder"
+  "createOrder" | "getOrder" | "listOrders" | "retryOrder" | "submitPsbt"
 >;
 
 export function createBridgeRouter(serviceResolver: () => Promise<BridgeServiceLike>): Router {
@@ -146,6 +146,25 @@ export function createBridgeRouter(serviceResolver: () => Promise<BridgeServiceL
       const service = await serviceResolver();
       const order = await service.retryOrder(orderId);
       return res.json({ data: order });
+    } catch (error: unknown) {
+      return handleRouteError(res, error);
+    }
+  });
+
+  router.post("/orders/:id/submit-psbt", async (req: Request, res: Response) => {
+    log.info("bridge route POST /orders/:id/submit-psbt", { orderId: req.params.id });
+    try {
+      const orderId = req.params.id?.trim();
+      if (!orderId) {
+        return res.status(400).json({ error: "order id is required" });
+      }
+      const signedPsbt = String((req.body as Record<string, unknown>)?.signedPsbt ?? "").trim();
+      if (!signedPsbt) {
+        return res.status(400).json({ error: "signedPsbt is required" });
+      }
+      const service = await serviceResolver();
+      const txId = await service.submitPsbt(orderId, signedPsbt);
+      return res.json({ data: { txId } });
     } catch (error: unknown) {
       return handleRouteError(res, error);
     }
