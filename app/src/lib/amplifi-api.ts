@@ -272,6 +272,7 @@ export interface CreateOrderBody {
   amountType: "exactIn" | "exactOut";
   receiveAddress: string;
   walletAddress: string;
+  bitcoinAddress?: string;
   action?: "swap" | "borrow";
 }
 

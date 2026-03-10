@@ -23,6 +23,7 @@ export type BridgeCreateOrderInput = {
   amountType: BridgeAmountType;
   receiveAddress: string;
   walletAddress: string;
+  bitcoinAddress: string | null;
   action: BridgeOrderAction;
 };
 
@@ -38,6 +39,7 @@ export type BridgeOrder = {
   depositAddress: string | null;
   receiveAddress: string;
   walletAddress: string;
+  bitcoinAddress: string | null;
   status: BridgeOrderStatus;
   action: BridgeOrderAction;
   atomiqSwapId: string | null;

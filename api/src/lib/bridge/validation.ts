@@ -83,6 +83,8 @@ export function validateCreateOrderPayload(payload: unknown): BridgeCreateOrderI
     throw new Error("walletAddress is required");
   }
 
+  const bitcoinAddress = body.bitcoinAddress ? asString(body.bitcoinAddress).trim() : null;
+
   return {
     network: settings.network,
     sourceAsset: "BTC",
@@ -91,6 +93,7 @@ export function validateCreateOrderPayload(payload: unknown): BridgeCreateOrderI
     amountType: validateAmountType(body.amountType),
     receiveAddress: validateStarknetReceiveAddress(body.receiveAddress),
     walletAddress,
+    bitcoinAddress,
     action: body.action ? validateAction(body.action) : "swap",
   };
 }

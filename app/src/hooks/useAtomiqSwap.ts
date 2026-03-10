@@ -135,6 +135,7 @@ export function useAtomiqSwap(): UseAtomiqSwapResult {
           amountType: "exactIn",
           receiveAddress: starknetAddress,
           walletAddress: starknetAddress,
+          bitcoinAddress: bitcoinPaymentAddress,
           action,
         });
         orderId = orderResp.data.orderId;

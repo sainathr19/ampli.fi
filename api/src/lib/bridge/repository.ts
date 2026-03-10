@@ -21,6 +21,7 @@ type BridgeOrderRow = {
   deposit_address: string | null;
   receive_address: string;
   wallet_address: string;
+  bitcoin_address: string | null;
   status: string;
   action: string;
   atomiq_swap_id: string | null;
@@ -64,6 +65,7 @@ function toOrder(row: BridgeOrderRow): BridgeOrder {
     depositAddress: row.deposit_address,
     receiveAddress: row.receive_address,
     walletAddress: row.wallet_address,
+    bitcoinAddress: row.bitcoin_address,
     status: row.status as BridgeOrderStatus,
     action: (row.action ?? "swap") as BridgeOrder["action"],
     atomiqSwapId: row.atomiq_swap_id,
@@ -100,9 +102,9 @@ export class PgBridgeRepository implements BridgeRepository {
       `
       INSERT INTO bridge_orders (
         id, network, source_asset, destination_asset, amount, amount_type,
-        receive_address, wallet_address, status, action
+        receive_address, wallet_address, bitcoin_address, status, action
       )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
       RETURNING *
       `,
       [
@@ -114,6 +116,7 @@ export class PgBridgeRepository implements BridgeRepository {
         input.amountType,
         input.receiveAddress,
         input.walletAddress,
+        input.bitcoinAddress,
         "CREATED",
         input.action,
       ]
@@ -128,12 +131,13 @@ export class PgBridgeRepository implements BridgeRepository {
 
   async listOrdersByWallet(walletAddress: string, page: number, limit: number): Promise<BridgeOrderPage> {
     const offset = (page - 1) * limit;
+    const condition = "wallet_address = $1 OR bitcoin_address = $1";
     const [countResult, rowsResult] = await Promise.all([
-      this.pool.query<{ total: string }>("SELECT COUNT(*)::text AS total FROM bridge_orders WHERE wallet_address = $1", [
+      this.pool.query<{ total: string }>(`SELECT COUNT(*)::text AS total FROM bridge_orders WHERE ${condition}`, [
         walletAddress,
       ]),
       this.pool.query<BridgeOrderRow>(
-        "SELECT * FROM bridge_orders WHERE wallet_address = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3",
+        `SELECT * FROM bridge_orders WHERE ${condition} ORDER BY created_at DESC LIMIT $2 OFFSET $3`,
         [walletAddress, limit, offset]
       ),
     ]);
