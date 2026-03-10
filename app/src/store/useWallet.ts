@@ -12,7 +12,7 @@ import { UnisatBitcoinWallet } from "@/lib/bitcoin/UnisatBitcoinWallet";
 
 const BITCOIN_NETWORK = BitcoinNetwork.TESTNET4;
 const BITCOIN_RPC_URL = "https://mempool.space/testnet4/api";
-const STARKNET_RPC_URL = "https://starknet-sepolia.public.blastapi.io/rpc/v0_8";
+import { RPC_URL as STARKNET_RPC_URL } from "@/lib/constants";
 
 interface StarknetProvider {
   enable?: () => Promise<void>;

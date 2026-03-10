@@ -5,7 +5,6 @@ import paymasterRoutes from "./routes/paymaster.js";
 import vesuRoutes from "./routes/vesu.js";
 import aggregatorRoutes from "./routes/aggregator.js";
 import bridgeRoutes from "./routes/bridge.js";
-import { createProxyRouter } from "./routes/proxy.js";
 import earnRoutes from "./routes/earn.js";
 import { traceMiddleware } from "./middleware/trace.js";
 import { settings } from "./lib/settings.js";
@@ -27,7 +26,6 @@ app.use("/api/vesu", vesuRoutes);
 app.use("/api", aggregatorRoutes);
 app.use("/api/bridge", bridgeRoutes);
 app.use("/api/earn", earnRoutes);
-app.use("/proxy", createProxyRouter());
 
 async function start(): Promise<void> {
   await runMigrations();

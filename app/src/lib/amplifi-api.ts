@@ -256,7 +256,7 @@ export interface BridgeOrder {
   receiveAddress: string;
   walletAddress: string;
   status: BridgeOrderStatus;
-  action: "swap" | "borrow";
+  action: "swap" | "borrow" | "stake";
   atomiqSwapId: string | null;
   sourceTxId: string | null;
   destinationTxId: string | null;
@@ -273,7 +273,7 @@ export interface CreateOrderBody {
   receiveAddress: string;
   walletAddress: string;
   bitcoinAddress?: string;
-  action?: "swap" | "borrow";
+  action?: "swap" | "borrow" | "stake";
 }
 
 export async function createOrder(
@@ -339,6 +339,7 @@ export async function getOrder(orderId: string): Promise<{ data: BridgeOrder }> 
 
 export interface OrdersListParams {
   walletAddress: string;
+  action?: "swap" | "borrow" | "stake";
   page?: number;
   limit?: number;
 }
@@ -347,6 +348,7 @@ export async function getOrders(
   params: OrdersListParams
 ): Promise<{ data: BridgeOrder[]; meta: PaginationMeta }> {
   const search = new URLSearchParams({ walletAddress: params.walletAddress });
+  if (params.action) search.set("action", params.action);
   if (params.page != null) search.set("page", String(params.page));
   if (params.limit != null) search.set("limit", String(params.limit));
   const res = await fetch(`${API_URL}/api/bridge/orders?${search.toString()}`);
@@ -379,5 +381,89 @@ export async function signWithWallet(body: { walletId: string; hash: string }): 
     body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error("Wallet sign failed");
+  return res.json();
+}
+
+// ---------------------------------------------------------------------------
+// Earn – GET /api/earn/pools, /api/earn/positions
+// ---------------------------------------------------------------------------
+
+export interface EarnPoolToken {
+  symbol: string;
+  address: string;
+  decimals: number | null;
+}
+
+export interface EarnPoolData {
+  id: string;
+  poolContract: string;
+  validator: { name: string; stakerAddress: string };
+  token: EarnPoolToken;
+  delegatedAmount: string;
+  commissionPercent: number | null;
+}
+
+export interface EarnPoolItem {
+  protocol: string;
+  data: EarnPoolData;
+}
+
+export interface EarnPoolsResponse {
+  data: EarnPoolItem[];
+  meta: PaginationMeta;
+}
+
+export interface EarnPoolsParams {
+  protocol?: string;
+  validator?: string;
+  page?: number;
+  limit?: number;
+}
+
+export async function getEarnPools(
+  params: EarnPoolsParams = {}
+): Promise<EarnPoolsResponse> {
+  const search = new URLSearchParams();
+  if (params.protocol) search.set("protocol", params.protocol);
+  if (params.validator) search.set("validator", params.validator);
+  if (params.page != null) search.set("page", String(params.page));
+  if (params.limit != null) search.set("limit", String(params.limit));
+  const qs = search.toString();
+  const res = await fetch(`${API_URL}/api/earn/pools${qs ? `?${qs}` : ""}`);
+  if (!res.ok) throw new Error(`Earn pools failed: ${res.status}`);
+  return res.json();
+}
+
+export interface EarnPositionData {
+  poolContract: string;
+  token: EarnPoolToken;
+  staked: string;
+  rewards: string;
+  total: string;
+  unpooling: string;
+  unpoolTime: string | null;
+  commissionPercent: number;
+  rewardAddress: string;
+  walletAddress: string;
+}
+
+export interface EarnPositionItem {
+  protocol: string;
+  data: EarnPositionData;
+}
+
+export interface EarnPositionsResponse {
+  data: EarnPositionItem[];
+  meta: PaginationMeta;
+}
+
+export async function getEarnPositions(
+  walletAddress: string,
+  protocol?: string
+): Promise<EarnPositionsResponse> {
+  const search = new URLSearchParams({ walletAddress });
+  if (protocol) search.set("protocol", protocol);
+  const res = await fetch(`${API_URL}/api/earn/positions?${search.toString()}`);
+  if (!res.ok) throw new Error(`Earn positions failed: ${res.status}`);
   return res.json();
 }

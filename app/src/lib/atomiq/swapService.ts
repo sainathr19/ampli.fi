@@ -11,10 +11,6 @@ import {
   StarknetInitializerType,
   StarknetSigner,
 } from "@atomiqlabs/chain-starknet";
-import { patchFetchForAtomiq } from "./patchFetch";
-
-// Patch fetch before any SDK usage
-patchFetchForAtomiq();
 
 const factory = new SwapperFactory<[StarknetInitializerType]>([
   StarknetInitializer,

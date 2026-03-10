@@ -21,8 +21,11 @@ const DEFAULT_NETWORK: SupportedNetwork = "sepolia";
 export const STARKNET_NETWORK: SupportedNetwork =
   (import.meta.env.VITE_STARKNET_NETWORK as SupportedNetwork) || DEFAULT_NETWORK;
 
+import { RPC_URL } from "@/lib/constants";
+
 const sdkConfig: ConstructorParameters<typeof StarkZap>[0] = {
   network: STARKNET_NETWORK,
+  rpcUrl: RPC_URL,
 };
 
 const paymasterNodeUrl = import.meta.env.VITE_PAYMASTER_URL?.trim();

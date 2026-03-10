@@ -39,7 +39,7 @@ export interface UseAtomiqSwapResult {
   runSwap: (params: {
     dstToken: DstToken;
     amountBtc: string;
-    action?: "swap" | "borrow";
+    action?: "swap" | "borrow" | "stake";
     destinationAsset?: string;
   }) => Promise<string | null>;
   clearLogs: () => void;
@@ -103,7 +103,7 @@ export function useAtomiqSwap(): UseAtomiqSwapResult {
     async (params: {
       dstToken: DstToken;
       amountBtc: string;
-      action?: "swap" | "borrow";
+      action?: "swap" | "borrow" | "stake";
       destinationAsset?: string;
     }): Promise<string | null> => {
       if (!connected || !bitcoinPaymentAddress || !starknetAddress || !bitcoinWalletInstance || !starknetSigner) {

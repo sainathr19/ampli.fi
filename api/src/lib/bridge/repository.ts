@@ -5,6 +5,7 @@ import { log } from "../logger.js";
 import {
   BridgeCreateOrderInput,
   BridgeOrder,
+  BridgeOrderAction,
   BridgeOrderPage,
   BridgeOrderStatus,
 } from "./types.js";
@@ -36,7 +37,7 @@ export type BridgeRepository = {
   init(): Promise<void>;
   createOrder(input: BridgeCreateOrderInput): Promise<BridgeOrder>;
   getOrderById(id: string): Promise<BridgeOrder | null>;
-  listOrdersByWallet(walletAddress: string, page: number, limit: number): Promise<BridgeOrderPage>;
+  listOrdersByWallet(walletAddress: string, page: number, limit: number, action?: BridgeOrderAction): Promise<BridgeOrderPage>;
   updateOrder(
     id: string,
     patch: Partial<{
@@ -129,16 +130,20 @@ export class PgBridgeRepository implements BridgeRepository {
     return result.rowCount ? toOrder(result.rows[0]) : null;
   }
 
-  async listOrdersByWallet(walletAddress: string, page: number, limit: number): Promise<BridgeOrderPage> {
+  async listOrdersByWallet(walletAddress: string, page: number, limit: number, action?: BridgeOrderAction): Promise<BridgeOrderPage> {
     const offset = (page - 1) * limit;
-    const condition = "wallet_address = $1 OR bitcoin_address = $1";
+    const walletCondition = "(wallet_address = $1 OR bitcoin_address = $1)";
+    const condition = action
+      ? `${walletCondition} AND action = $2`
+      : walletCondition;
+    const params = action ? [walletAddress, action] : [walletAddress];
+    const limitIdx = params.length + 1;
+    const offsetIdx = params.length + 2;
     const [countResult, rowsResult] = await Promise.all([
-      this.pool.query<{ total: string }>(`SELECT COUNT(*)::text AS total FROM bridge_orders WHERE ${condition}`, [
-        walletAddress,
-      ]),
+      this.pool.query<{ total: string }>(`SELECT COUNT(*)::text AS total FROM bridge_orders WHERE ${condition}`, params),
       this.pool.query<BridgeOrderRow>(
-        `SELECT * FROM bridge_orders WHERE ${condition} ORDER BY created_at DESC LIMIT $2 OFFSET $3`,
-        [walletAddress, limit, offset]
+        `SELECT * FROM bridge_orders WHERE ${condition} ORDER BY created_at DESC LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
+        [...params, limit, offset]
       ),
     ]);
 

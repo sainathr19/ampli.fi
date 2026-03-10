@@ -57,8 +57,8 @@ export function validateStarknetReceiveAddress(value: unknown): string {
 
 export function validateAction(value: unknown): BridgeOrderAction {
   const normalized = asString(value).trim();
-  if (normalized !== "swap" && normalized !== "borrow") {
-    throw new Error("action must be one of: swap, borrow");
+  if (normalized !== "swap" && normalized !== "borrow" && normalized !== "stake") {
+    throw new Error("action must be one of: swap, borrow, stake");
   }
   return normalized;
 }

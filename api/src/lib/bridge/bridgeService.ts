@@ -1,6 +1,6 @@
 import { log } from "../logger.js";
 import { BridgeRepository } from "./repository.js";
-import { BridgeCreateOrderInput, BridgeOrder, BridgeOrderPage, BridgeOrderStatus } from "./types.js";
+import { BridgeCreateOrderInput, BridgeOrder, BridgeOrderAction, BridgeOrderPage, BridgeOrderStatus } from "./types.js";
 
 const MAX_LIST_LIMIT = 100;
 
@@ -52,9 +52,9 @@ export class BridgeService {
     return this.requireOrder(orderId);
   }
 
-  async listOrders(walletAddress: string, pageRaw: unknown, limitRaw: unknown): Promise<BridgeOrderPage> {
+  async listOrders(walletAddress: string, pageRaw: unknown, limitRaw: unknown, action?: BridgeOrderAction): Promise<BridgeOrderPage> {
     const { page, limit } = validatePagination(pageRaw, limitRaw);
-    return this.repository.listOrdersByWallet(walletAddress.toLowerCase(), page, limit);
+    return this.repository.listOrdersByWallet(walletAddress.toLowerCase(), page, limit, action);
   }
 
   async linkAtomiqSwapId(orderId: string, atomiqSwapId: string): Promise<BridgeOrder> {

@@ -4,6 +4,7 @@ import { BridgeService } from "../lib/bridge/bridgeService.js";
 import { PgBridgeRepository } from "../lib/bridge/repository.js";
 import {
   normalizeWalletAddress,
+  validateAction,
   validateCreateOrderPayload,
   validatePositiveIntegerString,
   validateStatus,
@@ -88,8 +89,9 @@ router.get("/orders", async (req: Request, res: Response) => {
     if (!walletAddress) return res.status(400).json({ error: "walletAddress query parameter is required" });
     const page = validatePositiveIntegerString(req.query.page ?? "1", "page");
     const limit = validatePositiveIntegerString(req.query.limit ?? "20", "limit");
+    const action = req.query.action ? validateAction(req.query.action) : undefined;
     const service = await getService();
-    const result = await service.listOrders(walletAddress, page, limit);
+    const result = await service.listOrders(walletAddress, page, limit, action);
     return res.json(result);
   } catch (error: unknown) {
     return handleRouteError(res, error);

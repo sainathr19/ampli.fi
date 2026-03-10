@@ -11,9 +11,7 @@ export const API_URL = (import.meta.env.VITE_API_URL || "http://localhost:6969")
   ""
 );
 
-export const RPC_URL =
-  import.meta.env.VITE_RPC_URL ||
-  "https://starknet-sepolia.public.blastapi.io/rpc/v0_8";
+export const RPC_URL = import.meta.env.VITE_RPC_URL;
 
 /** Mempool.space API base for BTC address/balance (testnet4 matches wallet). */
 export const MEMPOOL_API_BASE =

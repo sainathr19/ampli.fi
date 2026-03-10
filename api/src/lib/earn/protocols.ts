@@ -1,5 +1,6 @@
 import type { EarnHistoryEntry, EarnPool, EarnPosition } from "../../types/earn.js";
 import { createNativeStakingAdapter } from "./starknetStaking.js";
+import { createEndurAdapter } from "./endurStaking.js";
 
 export type EarnProtocolAdapter = {
   protocol: string;
@@ -9,9 +10,9 @@ export type EarnProtocolAdapter = {
 };
 
 export function getEnabledEarnProtocols(): string[] {
-  return ["native_staking"];
+  return ["native_staking", "endur"];
 }
 
 export function getEarnProtocolAdapters(): EarnProtocolAdapter[] {
-  return [createNativeStakingAdapter()];
+  return [createNativeStakingAdapter(), createEndurAdapter()];
 }

@@ -13,7 +13,7 @@ export type BridgeOrderStatus =
 
 export type BridgeAmountType = "exactIn" | "exactOut";
 
-export type BridgeOrderAction = "swap" | "borrow";
+export type BridgeOrderAction = "swap" | "borrow" | "stake";
 
 export type BridgeCreateOrderInput = {
   network: BridgeNetwork;
