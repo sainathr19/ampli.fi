@@ -58,6 +58,7 @@ export type LoanOffer = {
     symbol: string;
     address: string;
     decimals: number | null;
+    vTokenAddress: string | null;
   };
   borrow: {
     symbol: string;

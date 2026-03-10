@@ -13,11 +13,8 @@ export const API_URL = (import.meta.env.VITE_API_URL || "http://localhost:6969")
 
 export const RPC_URL = import.meta.env.VITE_RPC_URL;
 
-/** Mempool.space API base for BTC address/balance (testnet4 matches wallet). */
-export const MEMPOOL_API_BASE =
-  import.meta.env.VITE_BITCOIN_NETWORK === "mainnet"
-    ? "https://mempool.space/api"
-    : "https://mempool.space/testnet4/api";
+/** Mempool API base — proxied through our backend to avoid CORS issues. */
+export const MEMPOOL_API_BASE = `${API_URL}/api/mempool`;
 
 export const STORAGE_KEYS = {
   userId: "amplifi_privy_user_id",

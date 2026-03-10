@@ -4,7 +4,7 @@ import {
   type LoanOfferItem,
 } from "@/lib/amplifi-api";
 import { getAssetIconUrl, getProtocolIconUrl, LOGOS } from "@/lib/constants";
-import { LoanStatusPanel } from "../LoanStatusPanel";
+import { LoanStatusPanel, type DepositPhase } from "../LoanStatusPanel";
 
 const COLLATERAL = "WBTC";
 const BORROW = "USDC";
@@ -25,6 +25,7 @@ export interface BorrowOffersProps {
   loanFlow?: LoanFlowState | null;
   isSendingBtc?: boolean;
   swapStep?: string;
+  depositPhase?: string;
 }
 
 export function BorrowOffers({
@@ -35,6 +36,7 @@ export function BorrowOffers({
   loanFlow,
   isSendingBtc,
   swapStep,
+  depositPhase,
 }: BorrowOffersProps) {
   const [offers, setOffers] = useState<LoanOfferItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -82,6 +84,7 @@ export function BorrowOffers({
             <LoanStatusPanel
               orderId={loanFlow.orderId}
               isSendingBtc={isSendingBtc}
+              depositPhase={depositPhase as DepositPhase}
             />
           )}
           <p className="text-sm text-amplifi-muted">No offer selected.</p>
@@ -110,6 +113,7 @@ export function BorrowOffers({
             orderId={loanFlow.orderId}
             isSendingBtc={isSendingBtc}
             swapStep={swapStep}
+            depositPhase={depositPhase as DepositPhase}
           />
         )}
         <p className="mb-6 flex items-center gap-2 text-base text-amplifi-text">

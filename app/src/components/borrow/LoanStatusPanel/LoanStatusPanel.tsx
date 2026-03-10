@@ -6,17 +6,17 @@ const POLL_INTERVAL_MS = 3000;
 
 const STEPS = [
   { id: 1, label: "Order Created" },
-  { id: 2, label: "Detecting BTC Deposit" },
-  { id: 3, label: "Collateral conversion & allocation" },
-  { id: 4, label: "Loan issued" },
-  { id: 5, label: "Position Active" },
+  { id: 2, label: "Sending BTC" },
+  { id: 3, label: "Confirming BTC" },
+  { id: 4, label: "Converting to WBTC" },
+  { id: 5, label: "Depositing Collateral" },
+  { id: 6, label: "Position Active" },
 ] as const;
 
 /** Maps the frontend swap step to the loan progress step (1-based). */
 function swapStepToLoanStep(swapStep: string): number {
   switch (swapStep) {
     case "creating_order":
-      return 1;
     case "creating_swap":
       return 1;
     case "sending_btc":
@@ -26,7 +26,7 @@ function swapStepToLoanStep(swapStep: string): number {
     case "claiming":
       return 4;
     case "settled":
-      return 5;
+      return 4;
     default:
       return 1;
   }
@@ -38,21 +38,37 @@ function statusToStep(status: string): number {
   if (s === "CREATED" || s === "SWAP_CREATED") return 1;
   if (s === "BTC_SENT") return 3;
   if (s === "BTC_CONFIRMED" || s === "CLAIMING") return 4;
-  if (s === "SETTLED") return 5;
+  if (s === "SETTLED") return 4;
   return 1;
 }
+
+function depositStepToLoanStep(depositStep: string): number {
+  switch (depositStep) {
+    case "depositing":
+      return 5;
+    case "done":
+      return 6;
+    default:
+      return 0;
+  }
+}
+
+export type DepositPhase = "idle" | "depositing" | "done" | "error";
 
 export interface LoanStatusPanelProps {
   orderId: string;
   isSendingBtc?: boolean;
   /** Frontend swap step from useAtomiqSwap for real-time progress. */
   swapStep?: string;
+  /** Vesu collateral deposit phase. */
+  depositPhase?: DepositPhase;
 }
 
 export function LoanStatusPanel({
   orderId,
   isSendingBtc,
   swapStep,
+  depositPhase,
 }: LoanStatusPanelProps) {
   const [order, setOrder] = useState<BridgeOrder | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -87,7 +103,10 @@ export function LoanStatusPanel({
   // Use frontend swap step for real-time progress; fall back to backend status
   const backendStep = statusToStep(order?.status ?? "CREATED");
   const frontendStep = swapStep ? swapStepToLoanStep(swapStep) : 0;
-  const activeStep = Math.max(backendStep, frontendStep);
+  const depositStep = depositPhase ? depositStepToLoanStep(depositPhase) : 0;
+  const activeStep = Math.max(backendStep, frontendStep, depositStep);
+
+  const isInProgress = isSendingBtc || depositPhase === "depositing";
 
   return (
     <div className="mb-6">
@@ -99,7 +118,7 @@ export function LoanStatusPanel({
         {STEPS.map((step) => {
           const isComplete = step.id < activeStep;
           const isActive = step.id === activeStep;
-          const showLoading = isActive && isSendingBtc;
+          const showLoading = isActive && isInProgress;
 
           const stepNumberBg = isComplete
             ? "bg-[#F3FDF6]"

@@ -215,6 +215,10 @@ export function buildLoanOffersFromPools(
       const collateralPriceUsd = getUsdPrice(collateralAsset.raw);
       const borrowPriceUsd = getUsdPrice(debtAsset.raw);
 
+      const collateralVTokenAddress = asString(
+        (collateralAsset.raw as Record<string, unknown>).vTokenAddress
+      ) || null;
+
       offers.push({
         offerId: `vesu:${poolId}:${collateralAsset.address}:${debtAsset.address}`,
         pool: { id: poolId, name: poolName },
@@ -222,6 +226,7 @@ export function buildLoanOffersFromPools(
           symbol: collateralAsset.symbol,
           address: collateralAsset.address,
           decimals: collateralAsset.decimals,
+          vTokenAddress: collateralVTokenAddress,
         },
         borrow: {
           symbol: debtAsset.symbol,

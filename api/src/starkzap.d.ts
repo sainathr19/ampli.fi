@@ -44,6 +44,18 @@ declare module "starkzap" {
     address: Address;
   }
 
+  export interface Tx {
+    hash: string;
+    explorerUrl: string;
+    wait(): Promise<void>;
+  }
+
+  export class Amount {
+    static parse(value: string, token: Token): Amount;
+    toUnit(): string;
+    toFormatted(): string;
+  }
+
   export class Staking {
     static fromPool(
       poolAddress: Address,
@@ -53,6 +65,12 @@ declare module "starkzap" {
     ): Promise<Staking>;
     getPosition(wallet: WalletInterface): Promise<PoolMember | null>;
     getCommission(): Promise<number>;
+    isMember(wallet: WalletInterface): Promise<boolean>;
+    stake(wallet: WalletInterface, amount: Amount, options?: object): Promise<Tx>;
+    add(wallet: WalletInterface, amount: Amount, options?: object): Promise<Tx>;
+    claimRewards(wallet: WalletInterface, options?: object): Promise<Tx>;
+    exitIntent(wallet: WalletInterface, amount: Amount, options?: object): Promise<Tx>;
+    exit(wallet: WalletInterface, options?: object): Promise<Tx>;
   }
 
   export class StarkZap {

@@ -11,6 +11,7 @@ import {
   StarknetInitializerType,
   StarknetSigner,
 } from "@atomiqlabs/chain-starknet";
+import { API_URL } from "@/lib/constants";
 
 const factory = new SwapperFactory<[StarknetInitializerType]>([
   StarknetInitializer,
@@ -68,9 +69,11 @@ export async function initSwapper(
   _initArgs = { btcNetwork, rpcUrl: starknetRpcUrl };
   _initPromise = (async () => {
     const rpc = new RpcProviderWithRetries({ nodeUrl: starknetRpcUrl });
+    const mempoolProxyUrl = `${API_URL}/api/mempool/`;
     const swapper = factory.newSwapper({
       chains: { STARKNET: { rpcUrl: rpc } },
       bitcoinNetwork: btcNetwork,
+      mempoolApi: mempoolProxyUrl,
     });
     await swapper.init();
     _swapper = swapper;

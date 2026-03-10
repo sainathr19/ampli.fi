@@ -169,6 +169,7 @@ export interface LoanOfferAsset {
   symbol: string;
   address: string;
   decimals: number;
+  vTokenAddress?: string | null;
 }
 
 export interface LoanOfferData {

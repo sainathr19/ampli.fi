@@ -1,9 +1,11 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { SupplyBorrowForm } from "./SupplyBorrowForm";
 import { BorrowOffers, type LoanFlowState } from "./BorrowOffers";
 import { type LoanOfferItem } from "@/lib/amplifi-api";
 import { useWallet } from "@/store/useWallet";
 import { useAtomiqSwap } from "@/hooks/useAtomiqSwap";
+import { useVesuDeposit } from "@/hooks/useVesuDeposit";
+import type { DepositPhase } from "./LoanStatusPanel";
 
 export function BorrowPage() {
   const [loanParams, setLoanParams] = useState({
@@ -15,24 +17,59 @@ export function BorrowPage() {
     isBest: boolean;
   } | null>(null);
   const [initiateError, setInitiateError] = useState<string | null>(null);
-  const {
-    starknetAddress,
-  } = useWallet();
+  const [depositPhase, setDepositPhase] = useState<DepositPhase>("idle");
+  const depositTriggeredRef = useRef(false);
 
-  const {
-    step,
-    lastOrderId,
-    runSwap,
-  } = useAtomiqSwap();
+  const { starknetAddress } = useWallet();
+  const { step, lastOrderId, runSwap } = useAtomiqSwap();
+  const { deposit, error: depositError } = useVesuDeposit();
 
   const isSendingBtc = step !== "idle" && step !== "settled" && step !== "error";
 
-  // Derive loanFlow from lastOrderId so the LoanStatusPanel shows progress
-  // as soon as the order is created (not after the entire swap completes)
   const loanFlow = useMemo<LoanFlowState | null>(
     () => (lastOrderId ? { orderId: lastOrderId } : null),
     [lastOrderId]
   );
+
+  // Auto-deposit WBTC into Vesu after swap settles
+  useEffect(() => {
+    if (step !== "settled" || depositTriggeredRef.current || !selectedOffer) return;
+
+    const vTokenAddress = selectedOffer.item.data.collateral.vTokenAddress;
+    if (!vTokenAddress) {
+      console.warn("No vToken address found for collateral deposit");
+      return;
+    }
+
+    // Get the collateral amount from the quote (in raw token units)
+    const quote = selectedOffer.item.data.quote;
+    if (!quote?.requiredCollateralAmount) return;
+
+    const decimals = selectedOffer.item.data.collateral.decimals ?? 8;
+    const rawAmount = BigInt(
+      Math.floor(quote.requiredCollateralAmount * 10 ** decimals)
+    ).toString();
+
+    depositTriggeredRef.current = true;
+    setDepositPhase("depositing");
+
+    deposit(rawAmount, vTokenAddress)
+      .then(() => {
+        setDepositPhase("done");
+      })
+      .catch((err) => {
+        console.error("Vesu deposit failed:", err);
+        setDepositPhase("error");
+      });
+  }, [step, selectedOffer, deposit]);
+
+  // Reset deposit state when starting a new loan
+  useEffect(() => {
+    if (step === "idle") {
+      depositTriggeredRef.current = false;
+      setDepositPhase("idle");
+    }
+  }, [step]);
 
   const onLoanParamsChange = useCallback((borrowUsd: number, targetLtv: number) => {
     setLoanParams((prev) =>
@@ -80,7 +117,6 @@ export function BorrowPage() {
 
   return (
     <div className="relative mx-auto w-full max-w-[1400px] min-w-0 py-6 px-4 sm:py-8 sm:px-0">
-      {/* Left-side background pattern */}
       <div
         className="pointer-events-none absolute left-0 top-0 bottom-0 w-full max-w-[50%] min-h-[600px] bg-no-repeat bg-left bg-[length:auto_100%] opacity-[0.06] lg:opacity-[0.08]"
         style={{ backgroundImage: "url('/mask.svg')" }}
@@ -102,7 +138,7 @@ export function BorrowPage() {
             onLoanParamsChange={onLoanParamsChange}
             selectedOffer={selectedOffer}
             onInitiateLoan={handleInitiateLoan}
-            initiateError={initiateError}
+            initiateError={initiateError || (depositPhase === "error" ? (depositError ?? "Collateral deposit failed") : null)}
             starknetAddress={starknetAddress}
             loanFlow={loanFlow}
           />
@@ -116,6 +152,7 @@ export function BorrowPage() {
             loanFlow={loanFlow}
             isSendingBtc={isSendingBtc}
             swapStep={step}
+            depositPhase={depositPhase}
           />
         </div>
       </div>

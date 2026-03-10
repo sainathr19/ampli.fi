@@ -13,8 +13,11 @@ import { LOGOS, getAssetIconUrl } from "@/lib/constants";
 import type { DstToken } from "@/lib/atomiq/swapService";
 import {
   getEarnPools,
+  getEarnPositions,
   getOrders,
   type EarnPoolItem,
+  type EarnPositionItem,
+  type EarnPositionData,
   type BridgeOrder,
 } from "@/lib/amplifi-api";
 
@@ -67,6 +70,7 @@ export function EarnPage() {
   );
   const displayAddress = starknetAccount?.address ?? starknetAddress ?? null;
 
+  const [pageTab, setPageTab] = useState<"earn" | "portfolio">("earn");
   const [allPools, setAllPools] = useState<EarnPoolItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -150,76 +154,114 @@ export function EarnPage() {
                 : "Connect your Starknet wallet (browser extension, e.g. ArgentX or Braavos) to stake."}
             </p>
           )}
-          <div className="mt-3 max-w-[220px]">
-            <ScrollableSelect
-              value={sourceAsset}
-              options={[
-                { value: "STRK", label: "STRK (Starknet)" },
-                { value: "BTC", label: "BTC (Bitcoin)" },
-              ]}
-              onChange={handleSourceAssetChange}
-              placeholder="Select asset"
-            />
-          </div>
         </div>
       </div>
 
-      <div className="relative grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-[472px_1fr]">
-        {/* Left column: staking form for selected pool */}
-        <div className="w-full min-w-0">
-          {selectedPool ? (
-            sourceAsset === "BTC" ? (
-              <BtcStakeForm
-                pool={selectedPool.item}
-                isBest={selectedPool.isBest}
-                onBack={() => setSelectedPool(null)}
+      {/* Earn / Portfolio tab buttons */}
+      <div className="relative mb-6 flex gap-2">
+        <button
+          type="button"
+          onClick={() => setPageTab("earn")}
+          className={`rounded-amplifi px-5 py-2 text-sm font-medium transition-colors ${
+            pageTab === "earn"
+              ? "bg-amplifi-nav text-white"
+              : "bg-amplifi-surface text-amplifi-text hover:bg-amplifi-border"
+          }`}
+        >
+          Earn
+        </button>
+        <button
+          type="button"
+          onClick={() => setPageTab("portfolio")}
+          className={`rounded-amplifi px-5 py-2 text-sm font-medium transition-colors ${
+            pageTab === "portfolio"
+              ? "bg-amplifi-nav text-white"
+              : "bg-amplifi-surface text-amplifi-text hover:bg-amplifi-border"
+          }`}
+        >
+          Portfolio
+        </button>
+      </div>
+
+      {pageTab === "earn" ? (
+        <>
+          <div className="relative mb-4">
+            <div className="max-w-[220px]">
+              <ScrollableSelect
+                value={sourceAsset}
+                options={[
+                  { value: "STRK", label: "STRK (Starknet)" },
+                  { value: "BTC", label: "BTC (Bitcoin)" },
+                ]}
+                onChange={handleSourceAssetChange}
+                placeholder="Select asset"
               />
-            ) : selectedPool.item.protocol === "endur" ? (
-              <EndurStakeForm
-                pool={selectedPool.item}
-                isBest={selectedPool.isBest}
-                onBack={() => setSelectedPool(null)}
+            </div>
+          </div>
+
+          <div className="relative grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-[472px_1fr]">
+            {/* Left column: staking form for selected pool */}
+            <div className="w-full min-w-0">
+              {selectedPool ? (
+                sourceAsset === "BTC" ? (
+                  <BtcStakeForm
+                    pool={selectedPool.item}
+                    isBest={selectedPool.isBest}
+                    onBack={() => setSelectedPool(null)}
+                  />
+                ) : selectedPool.item.protocol === "endur" ? (
+                  <EndurStakeForm
+                    pool={selectedPool.item}
+                    isBest={selectedPool.isBest}
+                    onBack={() => setSelectedPool(null)}
+                  />
+                ) : (
+                  <NativeStakeForm
+                    pool={selectedPool.item}
+                    isBest={selectedPool.isBest}
+                    onBack={() => setSelectedPool(null)}
+                  />
+                )
+              ) : (
+                <div className="rounded-amplifi bg-white p-4 sm:p-6">
+                  <div className="flex items-center gap-2 mb-3">
+                    <img src={LOGOS.import} alt="" className="h-4 w-4" />
+                    <span className="text-base font-medium text-amplifi-text">Stake</span>
+                  </div>
+                  <p className="text-sm text-amplifi-muted">
+                    Select a pool from the list to start staking.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Right column: aggregated pools list */}
+            <div className="w-full min-w-0">
+              <EarnPoolsList
+                pools={filteredPools}
+                loading={loading}
+                error={error}
+                selectedPool={selectedPool}
+                onSelectPool={setSelectedPool}
+                sourceAsset={sourceAsset}
               />
-            ) : (
-              <NativeStakeForm
-                pool={selectedPool.item}
-                isBest={selectedPool.isBest}
-                onBack={() => setSelectedPool(null)}
+            </div>
+          </div>
+
+          {/* Stake orders history table */}
+          {(starknetAddress || bitcoinPaymentAddress) && (
+            <div className="relative mt-6 sm:mt-8">
+              <StakeOrdersTable
+                walletAddress={(starknetAddress || bitcoinPaymentAddress)!}
               />
-            )
-          ) : (
-            <div className="rounded-amplifi bg-white p-4 sm:p-6">
-              <div className="flex items-center gap-2 mb-3">
-                <img src={LOGOS.import} alt="" className="h-4 w-4" />
-                <span className="text-base font-medium text-amplifi-text">Stake</span>
-              </div>
-              <p className="text-sm text-amplifi-muted">
-                Select a pool from the list to start staking.
-              </p>
             </div>
           )}
-        </div>
-
-        {/* Right column: aggregated pools list */}
-        <div className="w-full min-w-0">
-          <EarnPoolsList
-            pools={filteredPools}
-            loading={loading}
-            error={error}
-            selectedPool={selectedPool}
-            onSelectPool={setSelectedPool}
-            sourceAsset={sourceAsset}
-          />
-        </div>
-      </div>
-
-      {/* Stake orders history table */}
-      {(starknetAddress || bitcoinPaymentAddress) && (
-        <div className="relative mt-6 sm:mt-8">
-          <StakeOrdersTable
-            walletAddress={(starknetAddress || bitcoinPaymentAddress)!}
-          />
-        </div>
+        </>
+      ) : (
+        <PortfolioSection
+          walletAddress={displayAddress}
+          allPools={allPools}
+        />
       )}
     </div>
   );
@@ -926,11 +968,10 @@ function NativeStakeForm({
   isBest: boolean;
   onBack: () => void;
 }) {
-  const { starknetAddress, starknetAccount, starknetSource, privyStarkzapWallet } = useWallet();
+  const { starknetAccount, starknetSource, starknetAddress, privyStarkzapWallet } = useWallet();
   const hasStarknetConnected = Boolean(
     starknetAccount?.address || (starknetSource === "privy" && starknetAddress)
   );
-  const displayAddress = starknetAccount?.address ?? starknetAddress ?? null;
 
   const {
     isSubmitting,
@@ -944,10 +985,10 @@ function NativeStakeForm({
   const [toastMessage, setToastMessage] = useState<{
     text: string;
     type: "warning" | "error" | "success";
+    link?: string;
   } | null>(null);
 
   const tokenSymbol = pool.data.token.symbol;
-  // Build a Token-like object for refreshBalance
   const tokenObj = useMemo(
     () => ({
       symbol: pool.data.token.symbol,
@@ -961,7 +1002,7 @@ function NativeStakeForm({
     if (hasStarknetConnected) {
       refreshBalance(tokenObj as never).catch(() => {});
     }
-  }, [hasStarknetConnected, refreshBalance, tokenObj, displayAddress, privyStarkzapWallet]);
+  }, [hasStarknetConnected, refreshBalance, tokenObj, starknetAddress, privyStarkzapWallet]);
 
   useEffect(() => {
     if (!toastMessage) return;
@@ -971,13 +1012,17 @@ function NativeStakeForm({
 
   const onStake = async () => {
     try {
-      await stake({
+      const result = await stake({
         token: tokenObj as never,
         poolAddress: pool.data.poolContract,
         amount,
       });
       setAmount("");
-      setToastMessage({ text: "Staked successfully!", type: "success" });
+      setToastMessage({
+        text: "Staked successfully!",
+        type: "success",
+        link: result.explorerUrl,
+      });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Stake failed";
       setToastMessage({ text: message, type: "error" });
@@ -992,8 +1037,8 @@ function NativeStakeForm({
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      {/* Header with back */}
       <div className="rounded-amplifi bg-white p-4 sm:p-6">
+        {/* Header with back */}
         <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <img src={LOGOS.import} alt="" className="h-4 w-4" />
@@ -1014,6 +1059,7 @@ function NativeStakeForm({
           />
         </div>
 
+        {/* Toast */}
         {(stakeError || toastMessage) && (
           <div
             className={`mb-4 rounded-amplifi border px-3 py-2 ${
@@ -1034,6 +1080,19 @@ function NativeStakeForm({
                 }
               >
                 {toastMessage.text}
+                {toastMessage.link && (
+                  <>
+                    {" "}
+                    <a
+                      href={toastMessage.link}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="underline hover:opacity-80"
+                    >
+                      View tx
+                    </a>
+                  </>
+                )}
               </p>
             )}
           </div>
@@ -1052,9 +1111,20 @@ function NativeStakeForm({
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-amplifi-muted">
-              Amount ({tokenSymbol})
-            </label>
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-medium text-amplifi-muted">
+                Amount ({tokenSymbol})
+              </label>
+              {selectedTokenBalance && (
+                <button
+                  type="button"
+                  onClick={() => setAmount(selectedTokenBalance)}
+                  className="text-xs font-medium text-amplifi-primary hover:text-amplifi-primary-hover"
+                >
+                  Max
+                </button>
+              )}
+            </div>
             <input
               type="text"
               value={amount}
@@ -1134,10 +1204,8 @@ function EndurStakeForm({
     error,
     isSubmitting,
     deposit,
-    withdraw,
   } = useEndurStaking();
 
-  const [tab, setTab] = useState<"deposit" | "withdraw">("deposit");
   const [amount, setAmount] = useState("");
   const [toastMessage, setToastMessage] = useState<{
     text: string;
@@ -1166,28 +1234,7 @@ function EndurStakeForm({
     }
   };
 
-  const onWithdraw = async () => {
-    try {
-      const txHash = await withdraw(amount);
-      setAmount("");
-      setToastMessage({
-        text: "Withdrawal successful!",
-        type: "success",
-        link: getTxExplorerUrl(txHash),
-      });
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Withdrawal failed";
-      setToastMessage({ text: msg, type: "error" });
-    }
-  };
-
   const canSubmit = hasWallet && Boolean(amount) && Number(amount) > 0 && !isSubmitting;
-
-  const onSetMax = () => {
-    if (tab === "deposit" && strkBalance) setAmount(strkBalance);
-    else if (tab === "withdraw" && position?.xstrkBalance)
-      setAmount(position.xstrkBalance);
-  };
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -1250,53 +1297,15 @@ function EndurStakeForm({
           </div>
         )}
 
-        {/* Deposit / Withdraw tabs */}
-        <div className="mb-4 flex gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              setTab("deposit");
-              setAmount("");
-            }}
-            className={`flex-1 rounded-amplifi py-2 text-sm font-medium transition-colors ${
-              tab === "deposit"
-                ? "bg-amplifi-nav text-white"
-                : "bg-amplifi-surface text-amplifi-text hover:bg-amplifi-border"
-            }`}
-          >
-            Deposit STRK
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setTab("withdraw");
-              setAmount("");
-            }}
-            className={`flex-1 rounded-amplifi py-2 text-sm font-medium transition-colors ${
-              tab === "withdraw"
-                ? "bg-amplifi-nav text-white"
-                : "bg-amplifi-surface text-amplifi-text hover:bg-amplifi-border"
-            }`}
-          >
-            Withdraw
-          </button>
-        </div>
-
         <div className="space-y-3 sm:space-y-4">
           {/* Balance */}
           <div>
-            <p className="text-xs font-medium text-amplifi-muted">
-              {tab === "deposit" ? "STRK Balance" : "xSTRK Balance"}
-            </p>
+            <p className="text-xs font-medium text-amplifi-muted">STRK Balance</p>
             <p className="text-2xl font-semibold text-amplifi-amount">
               {loading
                 ? "..."
-                : tab === "deposit"
-                ? strkBalance
-                  ? `${strkBalance} STRK`
-                  : "—"
-                : position?.xstrkBalance
-                ? `${position.xstrkBalance} xSTRK`
+                : strkBalance
+                ? `${strkBalance} STRK`
                 : "—"}
             </p>
           </div>
@@ -1305,15 +1314,17 @@ function EndurStakeForm({
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
               <label className="text-xs font-medium text-amplifi-muted">
-                Amount ({tab === "deposit" ? "STRK" : "xSTRK"})
+                Amount (STRK)
               </label>
-              <button
-                type="button"
-                onClick={onSetMax}
-                className="text-xs font-medium text-amplifi-primary hover:text-amplifi-primary-hover"
-              >
-                Max
-              </button>
+              {strkBalance && (
+                <button
+                  type="button"
+                  onClick={() => setAmount(strkBalance)}
+                  className="text-xs font-medium text-amplifi-primary hover:text-amplifi-primary-hover"
+                >
+                  Max
+                </button>
+              )}
             </div>
             <input
               type="text"
@@ -1321,9 +1332,7 @@ function EndurStakeForm({
               onChange={(e) => setAmount(e.target.value)}
               placeholder="0.0"
               className="w-full rounded-amplifi border-2 border-amplifi-border bg-amplifi-surface px-4 py-3 text-base font-medium text-amplifi-amount outline-none placeholder:text-amplifi-muted focus:border-amplifi-primary"
-              aria-label={
-                tab === "deposit" ? "Deposit amount" : "Withdraw amount"
-              }
+              aria-label="Deposit amount"
             />
           </div>
 
@@ -1376,20 +1385,14 @@ function EndurStakeForm({
             size="lg"
             className="w-full"
             disabled={!canSubmit}
-            onClick={tab === "deposit" ? onDeposit : onWithdraw}
+            onClick={onDeposit}
           >
-            {isSubmitting
-              ? tab === "deposit"
-                ? "Depositing..."
-                : "Withdrawing..."
-              : tab === "deposit"
-              ? "Deposit STRK"
-              : "Withdraw STRK"}
+            {isSubmitting ? "Depositing..." : "Deposit STRK"}
           </Button>
         </div>
       </div>
 
-      {/* Position card */}
+      {/* Position card (read-only) */}
       {position && (
         <div className="rounded-amplifi bg-white p-4 sm:p-6">
           <div className="mb-4 flex items-center gap-2">
@@ -1418,6 +1421,418 @@ function EndurStakeForm({
               </p>
             </div>
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// PortfolioSection — manage all staking positions
+// ---------------------------------------------------------------------------
+
+function PortfolioSection({
+  walletAddress,
+  allPools,
+}: {
+  walletAddress: string | null;
+  allPools: EarnPoolItem[];
+}) {
+  const {
+    isSubmitting: nativeSubmitting,
+    exitIntent,
+    exit,
+    claimRewards,
+  } = useStake();
+  const {
+    isSubmitting: endurSubmitting,
+    withdraw: endurWithdraw,
+  } = useEndurStaking();
+
+  const [positions, setPositions] = useState<EarnPositionItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [toastMessage, setToastMessage] = useState<{
+    text: string;
+    type: "success" | "error";
+  } | null>(null);
+
+  // Per-position unstake amount inputs
+  const [unstakeAmounts, setUnstakeAmounts] = useState<Record<string, string>>({});
+
+  // Build pool map for validator name lookup
+  const poolMap = useMemo(() => {
+    const map: Record<string, EarnPoolItem> = {};
+    for (const p of allPools) {
+      map[p.data.poolContract] = p;
+    }
+    return map;
+  }, [allPools]);
+
+  const fetchPositions = useCallback(async () => {
+    if (!walletAddress) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await getEarnPositions(walletAddress);
+      setPositions(res.data);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load positions");
+    } finally {
+      setLoading(false);
+    }
+  }, [walletAddress]);
+
+  useEffect(() => {
+    fetchPositions();
+  }, [fetchPositions]);
+
+  useEffect(() => {
+    if (!toastMessage) return;
+    const t = setTimeout(() => setToastMessage(null), 5000);
+    return () => clearTimeout(t);
+  }, [toastMessage]);
+
+  // Summary stats
+  const totalStaked = useMemo(
+    () => positions.reduce((sum, p) => sum + (Number(p.data.staked) || 0), 0),
+    [positions]
+  );
+  const totalRewards = useMemo(
+    () => positions.reduce((sum, p) => sum + (Number(p.data.rewards) || 0), 0),
+    [positions]
+  );
+
+  const getTokenObj = (pos: EarnPositionData) => ({
+    symbol: pos.token.symbol,
+    address: pos.token.address,
+    decimals: pos.token.decimals ?? 18,
+  });
+
+  const getCountdown = (unpoolTime: string | null) => {
+    if (!unpoolTime) return null;
+    const diff = new Date(unpoolTime).getTime() - Date.now();
+    if (diff <= 0) return null;
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    return `${hours}h ${minutes}m`;
+  };
+
+  const handleClaimRewards = async (pos: EarnPositionData) => {
+    try {
+      await claimRewards({
+        poolAddress: pos.poolContract,
+        token: getTokenObj(pos) as never,
+      });
+      setToastMessage({ text: "Rewards claimed!", type: "success" });
+      fetchPositions();
+    } catch (err) {
+      setToastMessage({
+        text: err instanceof Error ? err.message : "Claim failed",
+        type: "error",
+      });
+    }
+  };
+
+  const handleExitIntent = async (pos: EarnPositionData, amount: string) => {
+    try {
+      await exitIntent({
+        poolAddress: pos.poolContract,
+        token: getTokenObj(pos) as never,
+        amount,
+      });
+      setUnstakeAmounts((prev) => ({ ...prev, [pos.poolContract]: "" }));
+      setToastMessage({ text: "Unstaking initiated!", type: "success" });
+      fetchPositions();
+    } catch (err) {
+      setToastMessage({
+        text: err instanceof Error ? err.message : "Unstake failed",
+        type: "error",
+      });
+    }
+  };
+
+  const handleExit = async (pos: EarnPositionData) => {
+    try {
+      await exit({
+        poolAddress: pos.poolContract,
+        token: getTokenObj(pos) as never,
+      });
+      setToastMessage({ text: "Withdrawal complete!", type: "success" });
+      fetchPositions();
+    } catch (err) {
+      setToastMessage({
+        text: err instanceof Error ? err.message : "Withdrawal failed",
+        type: "error",
+      });
+    }
+  };
+
+  const handleEndurWithdraw = async (pos: EarnPositionData, amount: string) => {
+    try {
+      await endurWithdraw(amount);
+      setUnstakeAmounts((prev) => ({ ...prev, [pos.poolContract]: "" }));
+      setToastMessage({ text: "Withdrawal successful!", type: "success" });
+      fetchPositions();
+    } catch (err) {
+      setToastMessage({
+        text: err instanceof Error ? err.message : "Withdrawal failed",
+        type: "error",
+      });
+    }
+  };
+
+  if (!walletAddress) {
+    return (
+      <div className="rounded-amplifi bg-white p-4 sm:p-6">
+        <p className="text-sm text-amplifi-muted">
+          Connect your wallet to view your staking positions.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4 sm:space-y-6">
+      {/* Toast */}
+      {toastMessage && (
+        <div
+          className={`rounded-amplifi border px-3 py-2 ${
+            toastMessage.type === "success"
+              ? "border-amplifi-best-offer/30 bg-amplifi-best-offer/10"
+              : "border-amplifi-risk-hard/30 bg-amplifi-risk-hard-bg/30"
+          }`}
+        >
+          <p
+            className={
+              toastMessage.type === "success"
+                ? "text-sm text-amplifi-best-offer-text"
+                : "text-sm text-amplifi-risk-hard"
+            }
+          >
+            {toastMessage.text}
+          </p>
+        </div>
+      )}
+
+      {/* Summary stats */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="rounded-amplifi bg-white p-4 sm:p-6">
+          <p className="text-xs text-amplifi-muted">Total Staked</p>
+          <p className="text-2xl font-semibold text-amplifi-amount">
+            {loading ? "..." : `${totalStaked.toFixed(2)} STRK`}
+          </p>
+        </div>
+        <div className="rounded-amplifi bg-white p-4 sm:p-6">
+          <p className="text-xs text-amplifi-muted">Unclaimed Rewards</p>
+          <p className="text-2xl font-semibold text-amplifi-best-offer-text">
+            {loading ? "..." : `${totalRewards.toFixed(2)} STRK`}
+          </p>
+        </div>
+        <div className="rounded-amplifi bg-white p-4 sm:p-6">
+          <p className="text-xs text-amplifi-muted">Claimed Rewards</p>
+          <p className="text-2xl font-semibold text-amplifi-amount">--</p>
+        </div>
+      </div>
+
+      {/* Positions */}
+      {loading ? (
+        <div className="rounded-amplifi bg-white p-4 sm:p-6">
+          <p className="text-sm text-amplifi-muted">Loading positions...</p>
+        </div>
+      ) : error ? (
+        <div className="rounded-amplifi bg-white p-4 sm:p-6">
+          <p className="text-sm text-amplifi-risk-hard">{error}</p>
+        </div>
+      ) : positions.length === 0 ? (
+        <div className="rounded-amplifi bg-white p-4 sm:p-6">
+          <p className="text-sm text-amplifi-muted">
+            No staking positions found. Start staking from the Earn tab.
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {positions.map((item) => {
+            const pos = item.data;
+            const pool = poolMap[pos.poolContract];
+            const validatorName = pool?.data.validator.name ?? pos.rewardAddress.slice(0, 10) + "...";
+            const tokenSymbol = pos.token.symbol;
+            const isNative = item.protocol === "native_staking";
+            const hasUnpooling = Number(pos.unpooling) > 0;
+            const unpoolReady = hasUnpooling && pos.unpoolTime
+              ? new Date(pos.unpoolTime) <= new Date()
+              : false;
+            const hasRewards = Number(pos.rewards) > 0;
+            const unstakeAmt = unstakeAmounts[pos.poolContract] ?? "";
+            const isSubmitting = isNative ? nativeSubmitting : endurSubmitting;
+
+            return (
+              <div
+                key={`${item.protocol}-${pos.poolContract}`}
+                className="rounded-amplifi bg-white p-4 sm:p-6"
+              >
+                {/* Header */}
+                <div className="mb-3 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amplifi-primary text-xs font-semibold text-white">
+                      {tokenSymbol.charAt(0)}
+                    </div>
+                    <div>
+                      <span className="text-sm font-medium text-amplifi-text">
+                        {protocolDisplayName(item.protocol)} · {validatorName}
+                      </span>
+                      <p className="text-xs text-amplifi-muted break-all">
+                        <a
+                          href={getAddressExplorerUrl(pos.poolContract)}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-amplifi-primary underline hover:text-amplifi-primary-hover"
+                        >
+                          {pos.poolContract.slice(0, 10)}...{pos.poolContract.slice(-6)}
+                        </a>
+                      </p>
+                    </div>
+                  </div>
+                  <span className="text-sm font-medium text-amplifi-text">{tokenSymbol}</span>
+                </div>
+
+                {/* Stats row */}
+                <div className="mb-4 grid grid-cols-3 gap-3">
+                  <div className="rounded-amplifi bg-amplifi-surface p-3">
+                    <p className="text-xs text-amplifi-muted">Staked</p>
+                    <p className="text-sm font-semibold text-amplifi-text">
+                      {pos.staked} {tokenSymbol}
+                    </p>
+                  </div>
+                  <div className="rounded-amplifi bg-amplifi-surface p-3">
+                    <p className="text-xs text-amplifi-muted">Rewards</p>
+                    <p className="text-sm font-semibold text-amplifi-best-offer-text">
+                      {pos.rewards} {tokenSymbol}
+                    </p>
+                  </div>
+                  <div className="rounded-amplifi bg-amplifi-surface p-3">
+                    <p className="text-xs text-amplifi-muted">Total</p>
+                    <p className="text-sm font-semibold text-amplifi-text">
+                      {pos.total} {tokenSymbol}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Action panels */}
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  {/* Claim rewards panel */}
+                  {isNative && (
+                    <div className="rounded-amplifi border border-amplifi-border p-3">
+                      <p className="text-xs font-medium text-amplifi-muted mb-2">Claim Rewards</p>
+                      <p className="text-sm font-semibold text-amplifi-best-offer-text mb-3">
+                        {pos.rewards} {tokenSymbol}
+                      </p>
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        className="w-full"
+                        disabled={!hasRewards || isSubmitting}
+                        onClick={() => handleClaimRewards(pos)}
+                      >
+                        {isSubmitting ? "Claiming..." : "Claim Rewards"}
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* Unstake panel */}
+                  <div className="rounded-amplifi border border-amplifi-border p-3">
+                    <p className="text-xs font-medium text-amplifi-muted mb-2">
+                      {isNative ? "Unstake" : "Withdraw"}
+                    </p>
+
+                    {/* Pending unstake info (native only) */}
+                    {isNative && hasUnpooling && (
+                      <div className="mb-3 rounded-amplifi bg-amplifi-surface p-2">
+                        <p className="text-xs text-amplifi-muted">Pending Unstake</p>
+                        <p className="text-sm font-semibold text-amplifi-text">
+                          {pos.unpooling} {tokenSymbol}
+                        </p>
+                        {unpoolReady ? (
+                          <>
+                            <p className="text-xs text-amplifi-best-offer-text mt-1">
+                              Ready to withdraw
+                            </p>
+                            <Button
+                              variant="primary"
+                              size="sm"
+                              className="mt-2 w-full"
+                              disabled={isSubmitting}
+                              onClick={() => handleExit(pos)}
+                            >
+                              {isSubmitting ? "Withdrawing..." : "Complete Withdraw"}
+                            </Button>
+                          </>
+                        ) : (
+                          <p className="text-xs text-amplifi-muted mt-1">
+                            Available in: {getCountdown(pos.unpoolTime) ?? "calculating..."}
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Unstake / withdraw input */}
+                    {!(isNative && hasUnpooling && unpoolReady) && (
+                      <>
+                        <div className="mb-2 space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <label className="text-xs text-amplifi-muted">Amount</label>
+                            {Number(pos.staked) > 0 && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setUnstakeAmounts((prev) => ({
+                                    ...prev,
+                                    [pos.poolContract]: pos.staked,
+                                  }))
+                                }
+                                className="text-xs font-medium text-amplifi-primary hover:text-amplifi-primary-hover"
+                              >
+                                Max
+                              </button>
+                            )}
+                          </div>
+                          <input
+                            type="text"
+                            value={unstakeAmt}
+                            onChange={(e) =>
+                              setUnstakeAmounts((prev) => ({
+                                ...prev,
+                                [pos.poolContract]: e.target.value,
+                              }))
+                            }
+                            placeholder="0.0"
+                            className="w-full rounded-amplifi border-2 border-amplifi-border bg-amplifi-surface px-3 py-2 text-sm font-medium text-amplifi-amount outline-none placeholder:text-amplifi-muted focus:border-amplifi-primary"
+                          />
+                        </div>
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          className="w-full"
+                          disabled={!unstakeAmt || Number(unstakeAmt) <= 0 || isSubmitting}
+                          onClick={() =>
+                            isNative
+                              ? handleExitIntent(pos, unstakeAmt)
+                              : handleEndurWithdraw(pos, unstakeAmt)
+                          }
+                        >
+                          {isSubmitting
+                            ? "Processing..."
+                            : isNative
+                            ? "Start Unstake"
+                            : "Withdraw"}
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

@@ -11,8 +11,8 @@ import { XverseBitcoinWallet } from "@/lib/bitcoin/XverseBitcoinWallet";
 import { UnisatBitcoinWallet } from "@/lib/bitcoin/UnisatBitcoinWallet";
 
 const BITCOIN_NETWORK = BitcoinNetwork.TESTNET4;
-const BITCOIN_RPC_URL = "https://mempool.space/testnet4/api";
-import { RPC_URL as STARKNET_RPC_URL } from "@/lib/constants";
+import { API_URL, RPC_URL as STARKNET_RPC_URL } from "@/lib/constants";
+const BITCOIN_RPC_URL = `${API_URL}/api/mempool/`;
 
 interface StarknetProvider {
   enable?: () => Promise<void>;

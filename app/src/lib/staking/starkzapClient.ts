@@ -62,3 +62,11 @@ export function chainLiteralToNetwork(
 ): SupportedNetwork {
   return chainLiteral === "SN_MAIN" ? "mainnet" : "sepolia";
 }
+
+/** Expose the SDK's RpcProvider for use with Staking.fromPool(). */
+export function getStarkzapProvider() {
+  return stakingSdk.getProvider();
+}
+
+/** Re-export helpers needed for Staking.fromPool(). */
+export { getStakingPreset, ChainId } from "starkzap";
