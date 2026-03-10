@@ -24,6 +24,7 @@ export interface BorrowOffersProps {
   onSelectOffer?: (offer: { item: LoanOfferItem; isBest: boolean } | null) => void;
   loanFlow?: LoanFlowState | null;
   isSendingBtc?: boolean;
+  swapStep?: string;
 }
 
 export function BorrowOffers({
@@ -33,6 +34,7 @@ export function BorrowOffers({
   onSelectOffer,
   loanFlow,
   isSendingBtc,
+  swapStep,
 }: BorrowOffersProps) {
   const [offers, setOffers] = useState<LoanOfferItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -107,6 +109,7 @@ export function BorrowOffers({
           <LoanStatusPanel
             orderId={loanFlow.orderId}
             isSendingBtc={isSendingBtc}
+            swapStep={swapStep}
           />
         )}
         <p className="mb-6 flex items-center gap-2 text-base text-amplifi-text">

@@ -8,6 +8,22 @@ import {
 } from "sats-connect";
 import { BitcoinWalletBase } from "./BitcoinWalletBase";
 import { BitcoinNetwork, CoinselectAddressTypes } from "@atomiqlabs/sdk";
+import { bytesToHex } from "@noble/hashes/utils";
+
+/** Convert Uint8Array to base64 string (browser-safe, no Buffer needed). */
+function uint8ToBase64(bytes: Uint8Array): string {
+  let binary = "";
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+  return btoa(binary);
+}
+
+/** Convert base64 string to Uint8Array (browser-safe, no Buffer needed). */
+function base64ToUint8(b64: string): Uint8Array {
+  const binary = atob(b64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
 import { Address as AddressParser } from "@scure/btc-signer";
 import { Transaction } from "@scure/btc-signer";
 import { BTC_NETWORK } from "@scure/btc-signer/utils";
@@ -197,7 +213,7 @@ export class XverseBitcoinWallet extends BitcoinWalletBase {
       payload: {
         network: { type: networkType },
         message: "Sign transaction",
-        psbtBase64: Buffer.from(psbt.toPSBT(0)).toString("base64"),
+        psbtBase64: uint8ToBase64(psbt.toPSBT(0)),
         broadcast: true,
         inputsToSign: [
           {
@@ -227,10 +243,10 @@ export class XverseBitcoinWallet extends BitcoinWalletBase {
         throw new Error("Transaction not properly signed!");
       }
       const signedPsbt = Transaction.fromPSBT(
-        Buffer.from(psbtBase64, "base64")
+        base64ToUint8(psbtBase64)
       );
       signedPsbt.finalize();
-      const txHex = Buffer.from(signedPsbt.extract()).toString("hex");
+      const txHex = bytesToHex(signedPsbt.extract());
       txId = await super._sendTransaction(txHex);
     }
 
@@ -253,7 +269,7 @@ export class XverseBitcoinWallet extends BitcoinWalletBase {
       payload: {
         network: { type: networkType },
         message: "Sign transaction",
-        psbtBase64: Buffer.from(psbt.toPSBT(0)).toString("base64"),
+        psbtBase64: uint8ToBase64(psbt.toPSBT(0)),
         inputsToSign: [
           {
             address: this.account.address,
@@ -277,6 +293,6 @@ export class XverseBitcoinWallet extends BitcoinWalletBase {
       throw new Error("PSBT not properly signed!");
     }
 
-    return Transaction.fromPSBT(Buffer.from(psbtBase64, "base64"));
+    return Transaction.fromPSBT(base64ToUint8(psbtBase64));
   }
 }

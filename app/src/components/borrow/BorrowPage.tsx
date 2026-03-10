@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { SupplyBorrowForm } from "./SupplyBorrowForm";
 import { BorrowOffers, type LoanFlowState } from "./BorrowOffers";
 import { type LoanOfferItem } from "@/lib/amplifi-api";
@@ -14,7 +14,6 @@ export function BorrowPage() {
     item: LoanOfferItem;
     isBest: boolean;
   } | null>(null);
-  const [loanFlow, setLoanFlow] = useState<LoanFlowState | null>(null);
   const [initiateError, setInitiateError] = useState<string | null>(null);
   const {
     starknetAddress,
@@ -22,10 +21,18 @@ export function BorrowPage() {
 
   const {
     step,
+    lastOrderId,
     runSwap,
   } = useAtomiqSwap();
 
   const isSendingBtc = step !== "idle" && step !== "settled" && step !== "error";
+
+  // Derive loanFlow from lastOrderId so the LoanStatusPanel shows progress
+  // as soon as the order is created (not after the entire swap completes)
+  const loanFlow = useMemo<LoanFlowState | null>(
+    () => (lastOrderId ? { orderId: lastOrderId } : null),
+    [lastOrderId]
+  );
 
   const onLoanParamsChange = useCallback((borrowUsd: number, targetLtv: number) => {
     setLoanParams((prev) =>
@@ -61,9 +68,7 @@ export function BorrowPage() {
           destinationAsset: "WBTC",
         });
 
-        if (orderId) {
-          setLoanFlow({ orderId });
-        } else {
+        if (!orderId) {
           setInitiateError("Failed to initiate loan");
         }
       } catch (e) {
@@ -110,6 +115,7 @@ export function BorrowPage() {
             onSelectOffer={setSelectedOffer}
             loanFlow={loanFlow}
             isSendingBtc={isSendingBtc}
+            swapStep={step}
           />
         </div>
       </div>

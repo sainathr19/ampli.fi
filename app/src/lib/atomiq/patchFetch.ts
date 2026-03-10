@@ -1,9 +1,11 @@
 /**
- * Patches window.fetch to proxy external API calls through our server,
- * avoiding CORS issues with APIs that the Atomiq SDK uses internally:
- *   - mempool.space / mempool.holdings (Bitcoin blockchain data)
- *   - okx.com, binance.com, coingecko.com, coinpaprika.com, kraken.com (price feeds)
- *   - nodes.atomiq.exchange (Atomiq intermediary nodes for swap creation)
+ * Patches window.fetch to proxy mempool.space and okx.com requests through
+ * our Express backend, avoiding CORS issues. Follows the same pattern as
+ * the onesat reference implementation.
+ *
+ * Only mempool.space/holdings and okx.com need proxying — other APIs
+ * (Binance, CoinGecko, CoinPaprika, Kraken) have CORS headers and
+ * work directly from the browser.
  *
  * The SDK generates malformed mempool URLs (missing slashes between path
  * segments like "apiaddress" instead of "api/address"). This patch fixes
@@ -23,7 +25,6 @@ let patched = false;
  *   /testnet4/apitx                   → /testnet4/api/tx
  */
 function fixMempoolPath(path: string): string {
-  // "apiaddress" → "api/address"
   path = path.replace(/\/api(address|tx|block|blocks|mining|fees|v1|lightning)/g, "/api/$1");
   return path;
 }
@@ -45,7 +46,6 @@ export function patchFetchForAtomiq(): void {
       url = input.href;
     } else if (input instanceof Request) {
       url = input.url;
-      // Preserve method/headers from Request object if no init provided
       if (!init) {
         init = {
           method: input.method,
@@ -57,43 +57,15 @@ export function patchFetchForAtomiq(): void {
       url = String(input);
     }
 
-    // Proxy mempool.space and mempool.holdings requests
+    // Proxy mempool.space and mempool.holdings through our Express backend
     if (url.includes("mempool.space") || url.includes("mempool.holdings")) {
-      let proxied = url.replace(/https?:\/\/mempool\.(space|holdings)/, "/proxy/mempool");
+      let proxied = url.replace(/https?:\/\/mempool\.(space|holdings)/, `${API_URL}/proxy/mempool`);
       proxied = fixMempoolPath(proxied);
       return originalFetch(proxied, init);
     }
 
-    // Proxy okx.com requests
-    if (url.includes("okx.com")) {
-      const proxied = url.replace(/https?:\/\/(www\.)?okx\.com/, "/proxy/okx");
-      return originalFetch(proxied, init);
-    }
-
-    // Proxy price provider APIs (Binance, CoinGecko, CoinPaprika, Kraken)
-    if (url.includes("api.binance.com")) {
-      const proxied = url.replace(/https?:\/\/api\.binance\.com/, "/proxy/binance");
-      return originalFetch(proxied, init);
-    }
-    if (url.includes("api.coingecko.com")) {
-      const proxied = url.replace(/https?:\/\/api\.coingecko\.com/, "/proxy/coingecko");
-      return originalFetch(proxied, init);
-    }
-    if (url.includes("api.coinpaprika.com")) {
-      const proxied = url.replace(/https?:\/\/api\.coinpaprika\.com/, "/proxy/coinpaprika");
-      return originalFetch(proxied, init);
-    }
-    if (url.includes("api.kraken.com")) {
-      const proxied = url.replace(/https?:\/\/api\.kraken\.com/, "/proxy/kraken");
-      return originalFetch(proxied, init);
-    }
-
-    // Proxy Atomiq intermediary nodes (return HTML error pages when hit directly)
-    if (url.includes("nodes.atomiq.exchange")) {
-      const proxied = `${API_URL}/proxy/atomiq-nodes?url=${encodeURIComponent(url)}`;
-      return originalFetch(proxied, init);
-    }
-
+    // All other APIs (OKX, Binance, CoinGecko, CoinPaprika, Kraken,
+    // intermediary nodes) are called directly — no proxy needed.
     return originalFetch(input, init);
   };
 }

@@ -3,6 +3,7 @@ import { BitcoinNetwork, CoinselectAddressTypes } from "@atomiqlabs/sdk";
 import { Address as AddressParser } from "@scure/btc-signer";
 import { Transaction } from "@scure/btc-signer";
 import { BTC_NETWORK } from "@scure/btc-signer/utils";
+import { bytesToHex, hexToBytes } from "@noble/hashes/utils";
 
 interface UnisatProvider {
   requestAccounts(): Promise<string[]>;
@@ -143,7 +144,7 @@ export class UnisatBitcoinWallet extends BitcoinWalletBase {
       throw new Error("Not enough balance!");
     }
 
-    const psbtHex = Buffer.from(psbt.toPSBT(0)).toString("hex");
+    const psbtHex = bytesToHex(psbt.toPSBT(0));
     const signedPsbtHex = await this.provider.signPsbt(psbtHex, {
       autoFinalized: true,
     });
@@ -154,11 +155,11 @@ export class UnisatBitcoinWallet extends BitcoinWalletBase {
     psbt: Transaction,
     _signInputs: number[]
   ): Promise<Transaction> {
-    const psbtHex = Buffer.from(psbt.toPSBT(0)).toString("hex");
+    const psbtHex = bytesToHex(psbt.toPSBT(0));
     const signedPsbtHex = await this.provider.signPsbt(psbtHex, {
       autoFinalized: false,
     });
-    return Transaction.fromPSBT(Buffer.from(signedPsbtHex, "hex"));
+    return Transaction.fromPSBT(hexToBytes(signedPsbtHex));
   }
 
   getFundedPsbtFee(

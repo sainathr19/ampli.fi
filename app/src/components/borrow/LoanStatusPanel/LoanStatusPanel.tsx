@@ -12,24 +12,47 @@ const STEPS = [
   { id: 5, label: "Position Active" },
 ] as const;
 
-/** Maps order status to the active step (1-based). */
+/** Maps the frontend swap step to the loan progress step (1-based). */
+function swapStepToLoanStep(swapStep: string): number {
+  switch (swapStep) {
+    case "creating_order":
+      return 1;
+    case "creating_swap":
+      return 1;
+    case "sending_btc":
+      return 2;
+    case "confirming_btc":
+      return 3;
+    case "claiming":
+      return 4;
+    case "settled":
+      return 5;
+    default:
+      return 1;
+  }
+}
+
+/** Maps backend order status to the loan progress step (1-based). */
 function statusToStep(status: string): number {
   const s = status?.toUpperCase?.() ?? "";
-  if (s === "CREATED" || s === "SWAP_CREATED") return 2;
+  if (s === "CREATED" || s === "SWAP_CREATED") return 1;
   if (s === "BTC_SENT") return 3;
   if (s === "BTC_CONFIRMED" || s === "CLAIMING") return 4;
   if (s === "SETTLED") return 5;
-  return 2;
+  return 1;
 }
 
 export interface LoanStatusPanelProps {
   orderId: string;
   isSendingBtc?: boolean;
+  /** Frontend swap step from useAtomiqSwap for real-time progress. */
+  swapStep?: string;
 }
 
 export function LoanStatusPanel({
   orderId,
   isSendingBtc,
+  swapStep,
 }: LoanStatusPanelProps) {
   const [order, setOrder] = useState<BridgeOrder | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -61,8 +84,10 @@ export function LoanStatusPanel({
     };
   }, [orderId]);
 
-  const status = order?.status ?? "CREATED";
-  const activeStep = statusToStep(status);
+  // Use frontend swap step for real-time progress; fall back to backend status
+  const backendStep = statusToStep(order?.status ?? "CREATED");
+  const frontendStep = swapStep ? swapStepToLoanStep(swapStep) : 0;
+  const activeStep = Math.max(backendStep, frontendStep);
 
   return (
     <div className="mb-6">
@@ -74,9 +99,7 @@ export function LoanStatusPanel({
         {STEPS.map((step) => {
           const isComplete = step.id < activeStep;
           const isActive = step.id === activeStep;
-          const showLoading =
-            isActive &&
-            (isSendingBtc || status === "CREATED" || status === "SWAP_CREATED");
+          const showLoading = isActive && isSendingBtc;
 
           const stepNumberBg = isComplete
             ? "bg-[#F3FDF6]"
