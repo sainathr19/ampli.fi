@@ -4,12 +4,13 @@ import { useWallet } from "@/store/useWallet";
 
 /**
  * Syncs Privy+Starkzap wallet state to the global wallet store.
- * When user is authenticated with Privy and wallet is ready, we call connectPrivyStarknet.
+ * When user is authenticated with Privy and wallet is ready, we call connectPrivyStarknet
+ * and set the starkzap wallet for Earn page (balance + stake).
  */
 export function PrivyStarknetSync() {
-  const { walletAddress, starknetSigner, isReady, isAuthenticated } =
+  const { wallet, walletAddress, starknetSigner, isReady, isAuthenticated } =
     usePrivyStarknet();
-  const { connectPrivyStarknet, disconnectPrivyStarknet, starknetSource } =
+  const { connectPrivyStarknet, disconnectPrivyStarknet, setPrivyStarkzapWallet, starknetSource } =
     useWallet();
 
   useEffect(() => {
@@ -19,10 +20,17 @@ export function PrivyStarknetSync() {
   }, [isReady, walletAddress, starknetSigner, connectPrivyStarknet]);
 
   useEffect(() => {
+    if (isReady && wallet) {
+      setPrivyStarkzapWallet(wallet);
+    }
+  }, [isReady, wallet, setPrivyStarkzapWallet]);
+
+  useEffect(() => {
     if (!isAuthenticated && starknetSource === "privy") {
+      setPrivyStarkzapWallet(null);
       disconnectPrivyStarknet();
     }
-  }, [isAuthenticated, starknetSource, disconnectPrivyStarknet]);
+  }, [isAuthenticated, starknetSource, disconnectPrivyStarknet, setPrivyStarkzapWallet]);
 
   return null;
 }

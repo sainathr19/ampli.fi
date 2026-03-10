@@ -35,6 +35,9 @@ type BitcoinWalletInstance =
 
 export type StarknetSource = "extension" | "privy" | null;
 
+/** Starkzap wallet instance when connected via Privy (in-memory, not persisted). */
+type PrivyStarkzapWallet = unknown;
+
 type WalletState = {
   isXverseAvailable: boolean;
   isUniSatAvailable: boolean;
@@ -48,14 +51,21 @@ type WalletState = {
   /** Live instances for swap (not persisted). */
   bitcoinWalletInstance: BitcoinWalletInstance;
   starknetSigner: StarknetSigner | null;
+  /** Raw Starknet account for earn/staking (starkzap); set when connecting via extension. */
+  starknetAccount: WalletAccount | null;
+  /** Starkzap wallet when connected via Privy; used for balance/stake on Earn page (not persisted). */
+  privyStarkzapWallet: PrivyStarkzapWallet | null;
 
   detectProviders: () => void;
   connectBitcoin: (walletType: "xverse" | "unisat") => Promise<void>;
   connectStarknet: () => Promise<void>;
   connectPrivyStarknet: (address: string, signer: StarknetSigner) => void;
+  setPrivyStarkzapWallet: (wallet: PrivyStarkzapWallet | null) => void;
   disconnectBitcoin: () => void;
   disconnectStarknet: () => Promise<void>;
   disconnectPrivyStarknet: () => void;
+  /** Restore starknetAccount after refresh when we have starknetAddress (extension only). */
+  tryRestoreStarknetAccount: () => Promise<void>;
 };
 
 export const useWallet = create<WalletState>()(
@@ -72,6 +82,8 @@ export const useWallet = create<WalletState>()(
       starknetSource: null,
       bitcoinWalletInstance: null,
       starknetSigner: null,
+      starknetAccount: null,
+      privyStarkzapWallet: null,
 
       detectProviders: () => {
         if (typeof window === "undefined") return;
@@ -155,6 +167,7 @@ export const useWallet = create<WalletState>()(
             starknetWalletName: swo.name,
             starknetSource: "extension",
             starknetSigner: signer,
+            starknetAccount: walletAccount,
             connected: true,
             isConnecting: false,
           });
@@ -173,6 +186,10 @@ export const useWallet = create<WalletState>()(
           starknetSigner: signer,
           connected: true,
         });
+      },
+
+      setPrivyStarkzapWallet: (wallet) => {
+        set({ privyStarkzapWallet: wallet });
       },
 
       disconnectBitcoin: () => {
@@ -196,6 +213,7 @@ export const useWallet = create<WalletState>()(
           starknetWalletName: null,
           starknetSource: null,
           starknetSigner: null,
+          starknetAccount: null,
           connected: Boolean(get().bitcoinPaymentAddress),
         });
       },
@@ -207,8 +225,33 @@ export const useWallet = create<WalletState>()(
           starknetWalletName: null,
           starknetSource: null,
           starknetSigner: null,
+          starknetAccount: null,
+          privyStarkzapWallet: null,
           connected: Boolean(get().bitcoinPaymentAddress),
         });
+      },
+
+      tryRestoreStarknetAccount: async () => {
+        const current = get();
+        if (current.starknetAccount || !current.starknetAddress) return;
+        if (current.starknetSource === "privy") return;
+        try {
+          const swo = await connect({ modalMode: "neverAsk" });
+          if (!swo) return;
+          const walletAccount = await WalletAccount.connect(
+            new RpcProviderWithRetries({ nodeUrl: STARKNET_RPC_URL }),
+            swo
+          );
+          const signer = new StarknetSigner(walletAccount);
+          set({
+            starknetWalletName: swo.name,
+            starknetSource: "extension",
+            starknetSigner: signer,
+            starknetAccount: walletAccount,
+          });
+        } catch {
+          // Silent fail
+        }
       },
     }),
     {
@@ -218,6 +261,7 @@ export const useWallet = create<WalletState>()(
         starknetAddress: state.starknetAddress,
         bitcoinWalletType: state.bitcoinWalletType,
         starknetWalletName: state.starknetWalletName,
+        starknetSource: state.starknetSource,
         connected: state.connected,
       }),
       onRehydrateStorage: () => (_, err) => {
