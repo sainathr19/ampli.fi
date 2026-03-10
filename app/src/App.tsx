@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, useLocation, useNavigate } from "react-ro
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import WalletConnectionModal from "@/components/ui/WalletConnectionModal";
 import { PrivyStarknetSync } from "@/components/PrivyStarknetSync";
+import { WalletReconnector } from "@/components/WalletReconnector";
 import { useWallet } from "@/store/useWallet";
 import { Navbar, type TabId } from "@/components/navbar";
 import { ChainDataProvider } from "@/context/ChainDataProvider";
@@ -14,6 +15,7 @@ import {
   BorrowInitiatePage,
 } from "@/pages/borrow";
 import { HistoryPage, OrderDetailPage } from "@/pages/history";
+import { SwapPage } from "@/pages/swap";
 import { EarnPage } from "@/components/earn";
 
 function AppContent() {
@@ -37,6 +39,7 @@ function AppContent() {
 
   return (
     <>
+      <WalletReconnector />
       <PrivyStarknetSync />
       <div className="min-w-0 overflow-x-hidden px-4 sm:px-6 lg:px-10">
         <Navbar
@@ -62,16 +65,7 @@ function AppContent() {
             <Route path="/earn" element={<EarnPage />} />
             <Route path="/history" element={<HistoryPage />} />
             <Route path="/history/:orderId" element={<OrderDetailPage />} />
-            <Route
-              path="/swap"
-              element={
-                <div className="mx-auto max-w-6xl px-4 py-6 sm:py-8">
-                  <div className="rounded-2xl border border-amplifi-border bg-amplifi-surface-muted p-6 sm:p-8 text-center text-amplifi-text">
-                    Swap — coming soon
-                  </div>
-                </div>
-              }
-            />
+            <Route path="/swap" element={<SwapPage />} />
           </Routes>
         </main>
       </div>

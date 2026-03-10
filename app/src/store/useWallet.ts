@@ -66,6 +66,8 @@ type WalletState = {
   disconnectPrivyStarknet: () => void;
   /** Restore starknetAccount after refresh when we have starknetAddress (extension only). */
   tryRestoreStarknetAccount: () => Promise<void>;
+  /** Reconnect wallets when we have persisted types/addresses but missing instances (onesat pattern). */
+  reconnectWallets: () => Promise<void>;
 };
 
 export const useWallet = create<WalletState>()(
@@ -130,7 +132,8 @@ export const useWallet = create<WalletState>()(
 
       connectStarknet: async () => {
         const current = get();
-        if (current.isConnecting || current.starknetAddress) return;
+        if (current.isConnecting) return;
+        if (current.starknetAddress) return;
 
         try {
           set({ isConnecting: true });
@@ -233,7 +236,8 @@ export const useWallet = create<WalletState>()(
 
       tryRestoreStarknetAccount: async () => {
         const current = get();
-        if (current.starknetAccount || !current.starknetAddress) return;
+        if (current.starknetAccount) return;
+        if (!current.starknetAddress) return;
         if (current.starknetSource === "privy") return;
         try {
           const swo = await connect({ modalMode: "neverAsk" });
@@ -250,7 +254,26 @@ export const useWallet = create<WalletState>()(
             starknetAccount: walletAccount,
           });
         } catch {
-          // Silent fail
+          // ignore
+        }
+      },
+
+      reconnectWallets: async () => {
+        const s = get();
+        try {
+          if (s.bitcoinWalletType && !s.bitcoinWalletInstance) {
+            await get().connectBitcoin(s.bitcoinWalletType);
+          }
+          const afterBtc = get();
+          if (
+            afterBtc.starknetAddress &&
+            !afterBtc.starknetSigner &&
+            afterBtc.starknetSource === "extension"
+          ) {
+            await get().tryRestoreStarknetAccount();
+          }
+        } catch {
+          // ignore
         }
       },
     }),
@@ -264,15 +287,23 @@ export const useWallet = create<WalletState>()(
         starknetSource: state.starknetSource,
         connected: state.connected,
       }),
-      onRehydrateStorage: () => (_, err) => {
+      onRehydrateStorage: () => (state, err) => {
         if (err || typeof window === "undefined") return;
-        const state = useWallet.getState();
-        if (state.bitcoinWalletType && !state.bitcoinWalletInstance) {
-          state.connectBitcoin(state.bitcoinWalletType).catch(() => {});
-        }
-        if (state.starknetAddress && !state.starknetSigner && state.starknetSource === "extension") {
-          state.tryRestoreStarknetAccount().catch(() => {});
-        }
+        if (!state) return;
+        // Defer to next tick to avoid "Cannot access 'useWallet' before initialization"
+        setTimeout(() => {
+          const store = useWallet.getState();
+          if (store.bitcoinWalletType && !store.bitcoinWalletInstance) {
+            store.connectBitcoin(store.bitcoinWalletType).catch(() => {});
+          }
+          if (
+            store.starknetAddress &&
+            !store.starknetSigner &&
+            store.starknetSource === "extension"
+          ) {
+            store.tryRestoreStarknetAccount().catch(() => {});
+          }
+        }, 0);
       },
     }
   )
